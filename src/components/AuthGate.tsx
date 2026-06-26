@@ -7,9 +7,10 @@ import { authService } from '../supabase';
 interface AuthGateProps {
   onAuthSuccess: (user: { email: string; role: 'traveler' | 'admin'; country: string }) => void;
   lang: Language;
+  isAdminPathAccessed?: boolean;
 }
 
-export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
+export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = false }: AuthGateProps) {
   const [role, setRole] = useState<'traveler' | 'admin'>('traveler');
   const [email, setEmail] = useState('');
   const [passcode, setPasscode] = useState('');
@@ -25,8 +26,9 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
       return;
     }
 
-    if (role === 'admin' && passcode !== 'ADMIN2026') {
-      setError('Invalid admin passcode. Please use ADMIN2026 for testing.');
+    const adminPassword = process.env.ADMIN_PASSWORD || 'worldcuplegacyfund@081.Kokoma';
+    if (role === 'admin' && passcode !== adminPassword) {
+      setError('Invalid admin passcode. Please enter the secure clearance passcode.');
       return;
     }
 
@@ -80,7 +82,7 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
 
   const autofillAdmin = () => {
     setEmail('officer.uefa@fifa.acc.org');
-    setPasscode('ADMIN2026');
+    setPasscode(process.env.ADMIN_PASSWORD || 'worldcuplegacyfund@081.Kokoma');
     setRole('admin');
     setError('');
   };
@@ -145,36 +147,38 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
             )}
 
             {/* Role Tab Selector */}
-            <div className="grid grid-cols-2 p-1 glass rounded-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('traveler');
-                  setError('');
-                }}
-                className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
-                  role === 'traveler'
-                    ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
-                    : 'text-[#8B8FA8] hover:text-white/90'
-                }`}
-              >
-                European Traveler
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRole('admin');
-                  setError('');
-                }}
-                className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
-                  role === 'admin'
-                    ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
-                    : 'text-[#8B8FA8] hover:text-white/90'
-                }`}
-              >
-                System Admin
-              </button>
-            </div>
+            {isAdminPathAccessed && (
+              <div className="grid grid-cols-2 p-1 glass rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole('traveler');
+                    setError('');
+                  }}
+                  className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
+                    role === 'traveler'
+                      ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
+                      : 'text-[#8B8FA8] hover:text-white/90'
+                  }`}
+                >
+                  European Traveler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole('admin');
+                    setError('');
+                  }}
+                  className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
+                    role === 'admin'
+                      ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
+                      : 'text-[#8B8FA8] hover:text-white/90'
+                  }`}
+                >
+                  System Admin
+                </button>
+              </div>
+            )}
 
 
             {/* Email field */}
@@ -198,7 +202,7 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
                   <label className="text-[10px] font-sans font-bold uppercase text-[#8B8FA8] tracking-widest">
                     Sector Passcode (Officer Clearance)
                   </label>
-                  <span className="text-[9px] font-sans text-[#5B5F78] lowercase">(Default: ADMIN2026)</span>
+                  <span className="text-[9px] font-sans text-[#5B5F78] lowercase">(Clearance passcode required)</span>
                 </div>
                 <div className="relative flex items-center">
                   <KeyRound className="absolute left-3 w-4 h-4 text-[#5B5F78]" />
@@ -252,13 +256,15 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
               >
                 <UserPlus className="w-3.5 h-3.5 text-[#796BFF]" /> Instant Traveler Credentials
               </button>
-              <button
-                type="button"
-                onClick={autofillAdmin}
-                className="flex items-center gap-1.5 text-[#8B8FA8] hover:text-[#796BFF] transition cursor-pointer font-sans font-semibold"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#796BFF]" /> Admin Login Bypass
-              </button>
+              {isAdminPathAccessed && (
+                <button
+                  type="button"
+                  onClick={autofillAdmin}
+                  className="flex items-center gap-1.5 text-[#8B8FA8] hover:text-[#796BFF] transition cursor-pointer font-sans font-semibold"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#796BFF]" /> Admin Login Bypass
+                </button>
+              )}
             </div>
           </form>
         )}

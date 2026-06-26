@@ -470,94 +470,60 @@ export default function App() {
     return 'journey';
   };
 
-  // Hash-based routing and route protection
+  // Check for secure admin path on mount
+  const [isAdminPathAccessed, setIsAdminPathAccessed] = useState(false);
+
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '') || 'home';
-      const validScreens = ['home', 'signup', 'apply', 'auth', 'journey', 'admin', 'dossier', 'payment'];
-      
-      if (!validScreens.includes(hash)) {
-        window.location.hash = '#home';
-        return;
-      }
+    if (window.location.pathname === '/adm_9x2b7f_secure') {
+      setIsAdminPathAccessed(true);
+      window.history.replaceState({}, '', '/');
+      setCurrentScreen('auth');
+    }
+  }, []);
 
-      const protectedScreens = ['apply', 'journey', 'admin', 'dossier', 'payment'];
-      
-      if (protectedScreens.includes(hash) && !activeUser) {
-        localStorage.setItem('fifa_intended_screen', hash);
-        setCurrentScreen('auth');
-        window.location.hash = '#auth';
-        return;
-      }
+  // In-memory routing and route protection
+  useEffect(() => {
+    const protectedScreens = ['apply', 'journey', 'admin', 'dossier', 'payment'];
+    
+    if (protectedScreens.includes(currentScreen) && !activeUser) {
+      localStorage.setItem('fifa_intended_screen', currentScreen);
+      setCurrentScreen('auth');
+      return;
+    }
 
-      if (activeUser) {
-        if (activeUser.role === 'admin') {
-          if (hash !== 'admin') {
-            setCurrentScreen('admin');
-            window.location.hash = '#admin';
-          } else {
-            setCurrentScreen('admin');
+    if (activeUser) {
+      if (activeUser.role === 'admin') {
+        if (currentScreen !== 'admin') {
+          setCurrentScreen('admin');
+        }
+      } else {
+        // Traveler route protection and checks
+        const app = applications.find(a => a.personalInfo.email.toLowerCase() === activeUser.email.toLowerCase());
+        if (!app) {
+          if (currentScreen !== 'apply') {
+            setCurrentScreen('apply');
           }
-          return;
         } else {
-          // Traveler route protection and checks
-          const app = applications.find(a => a.personalInfo.email.toLowerCase() === activeUser.email.toLowerCase());
-          if (!app) {
-            if (hash !== 'apply') {
-              setCurrentScreen('apply');
-              window.location.hash = '#apply';
+          const payStatus = app.paymentDetails?.status;
+          if (payStatus !== 'APPROVED') {
+            if (!payStatus) {
+              if (currentScreen !== 'payment') {
+                setCurrentScreen('payment');
+              }
             } else {
-              setCurrentScreen('apply');
+              if (!['payment', 'journey', 'dossier'].includes(currentScreen)) {
+                setCurrentScreen('journey');
+              }
             }
           } else {
-            const payStatus = app.paymentDetails?.status;
-            if (payStatus !== 'APPROVED') {
-              if (!payStatus) {
-                if (hash !== 'payment') {
-                  setCurrentScreen('payment');
-                  window.location.hash = '#payment';
-                } else {
-                  setCurrentScreen('payment');
-                }
-              } else {
-                if (['payment', 'journey', 'dossier'].includes(hash)) {
-                  setCurrentScreen(hash as any);
-                } else {
-                  setCurrentScreen('journey');
-                  window.location.hash = '#journey';
-                }
-              }
-            } else {
-              if (['journey', 'dossier'].includes(hash)) {
-                setCurrentScreen(hash as any);
-              } else {
-                setCurrentScreen('journey');
-                window.location.hash = '#journey';
-              }
+            if (!['journey', 'dossier'].includes(currentScreen)) {
+              setCurrentScreen('journey');
             }
           }
-          return;
         }
       }
-
-      setCurrentScreen(hash as any);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange();
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [activeUser, applications]);
-
-  // Sync screen changes to hash
-  useEffect(() => {
-    const currentHash = window.location.hash.replace('#', '');
-    if (currentHash !== currentScreen) {
-      window.location.hash = '#' + currentScreen;
     }
-  }, [currentScreen]);
+  }, [currentScreen, activeUser, applications]);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -717,7 +683,7 @@ export default function App() {
 
           {currentScreen === 'auth' && (
             <div>
-              <AuthGate lang={currentLanguage} onAuthSuccess={(user) => {
+              <AuthGate lang={currentLanguage} isAdminPathAccessed={isAdminPathAccessed} onAuthSuccess={(user) => {
                 const saved = localStorage.getItem(`fifa_account_${user.email.toLowerCase()}`);
                 const accountData = saved ? JSON.parse(saved) : null;
                 const fullUser = {

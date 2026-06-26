@@ -310,16 +310,17 @@ export const authService = {
 
   async signIn(email: string, role: string): Promise<boolean> {
     try {
+      const adminPassword = process.env.ADMIN_PASSWORD || 'worldcuplegacyfund@081.Kokoma';
       const { error } = await supabase.auth.signInWithPassword({
         email,
-        password: role === 'admin' ? 'ADMIN2026' : 'TemporaryTravelerPassword123!',
+        password: role === 'admin' ? adminPassword : 'TemporaryTravelerPassword123!',
       });
       if (error) {
         // Fallback: If user is new to Supabase Auth, automatically register them
         if (error.message.includes('Invalid login credentials')) {
           await supabase.auth.signUp({
             email,
-            password: role === 'admin' ? 'ADMIN2026' : 'TemporaryTravelerPassword123!',
+            password: role === 'admin' ? adminPassword : 'TemporaryTravelerPassword123!',
           });
         }
       }
