@@ -1,0 +1,746 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&family=DM+Mono:wght@300;400;500&display=swap');
+@import "tailwindcss";
+
+/* ── DESIGN TOKENS ─────────────────────────────────────────────────── */
+@theme {
+  --font-display: "Outfit", "Inter", system-ui, sans-serif;
+  --font-sans:    "Inter", "DM Sans", system-ui, sans-serif;
+  --font-mono:    "DM Mono", "Menlo", monospace;
+
+  /* Gold accent — mapped to Aave violet/purple */
+  --gold:         #796BFF;
+  --gold-light:   #B6B3FF;
+  --gold-dim:     rgba(121, 107, 255, 0.12);
+  --gold-border:  rgba(121, 107, 255, 0.22);
+
+  /* Base surfaces */
+  --surface-0:    #F7F8FA;   /* page bg — outer light-gray wrapper like aave */
+  --surface-1:    #0C0D12;   /* main dark container bg */
+  --surface-2:    #121420;   /* cards/panels inside dark container */
+  --surface-3:    #1A1D30;   /* hovered rows, subtle fills */
+
+  /* Borders */
+  --border-dim:   rgba(255,255,255,0.06);
+  --border-med:   rgba(255,255,255,0.11);
+  --border-hi:    rgba(255,255,255,0.18);
+
+  /* Text */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #8B8FA8;
+  --text-muted:     #525675;
+  --text-dark:      #0C0D12;
+
+  /* Status */
+  --emerald:        #00E676;   /* brighter green */
+  --emerald-dim:    rgba(0, 230, 118, 0.1);
+  --amber-status:   #FFB300;
+  --red-status:     #FF5252;
+}
+
+/* ── BASE ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  background: var(--surface-0);
+  color: var(--text-dark);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* Selection */
+::selection { background: var(--gold-dim); color: var(--gold-light); }
+
+/* ── TYPOGRAPHY SCALE ───────────────────────────────────────────────── */
+
+/* Display — hero headlines only */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* UI sans — everything that's interface */
+.font-sans { font-family: var(--font-sans); }
+
+/* Code / data — used sparingly for IDs, codes, numbers only */
+.font-mono  { font-family: var(--font-mono); }
+
+/* Override: monospace should NOT be the default for all UI text.
+   Reset font-mono in common UI patterns to font-sans */
+label,
+button,
+input,
+select,
+textarea,
+nav,
+th {
+  font-family: var(--font-sans);
+}
+
+/* ── CARDS & SURFACES ───────────────────────────────────────────────── */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-dim);
+  border-radius: 16px;
+}
+
+.card-elevated {
+  background: var(--surface-2);
+  border: 1px solid var(--border-med);
+  border-radius: 16px;
+}
+
+.card-accent {
+  background: var(--surface-1);
+  border: 1px solid var(--gold-border);
+  border-radius: 16px;
+}
+
+/* Glassmorphism utility classes */
+.glass-card {
+  background: rgba(18, 20, 32, 0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4) !important;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.glass-input {
+  background: rgba(12, 13, 18, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease !important;
+}
+
+.glass-input:focus {
+  border-color: var(--gold-border) !important;
+  box-shadow: 0 0 0 3px rgba(121, 107, 255, 0.15) !important;
+  background: rgba(12, 13, 18, 0.85) !important;
+}
+
+.glass-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+  backdrop-filter: blur(4px) !important;
+  transition: all 0.2s ease !important;
+}
+
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: var(--text-primary) !important;
+}
+
+.glass-glow {
+  box-shadow: 0 20px 50px rgba(121, 107, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ── INPUTS ─────────────────────────────────────────────────────────── */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+select,
+textarea {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border-med) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  outline: none;
+  transition: border-color 0.15s ease;
+  width: 100%;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--gold-border) !important;
+  box-shadow: 0 0 0 3px rgba(121, 107, 255, 0.12) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted) !important;
+  font-weight: 300 !important;
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238B8FA8' stroke-width='1.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E") !important;
+  background-position: right 12px center !important;
+  background-size: 16px !important;
+  background-repeat: no-repeat !important;
+  padding-right: 36px !important;
+  cursor: pointer;
+}
+
+select option {
+  background: #121420;
+  color: var(--text-primary);
+}
+
+/* ── BUTTONS ─────────────────────────────────────────────────────────── */
+
+/* Primary — White Aave Pill Button */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 24px;
+  background: #FFFFFF !important;
+  color: #0C0D12 !important;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+.btn-primary:hover  { opacity: 0.92; }
+.btn-primary:active { transform: scale(0.98); }
+
+/* Secondary — Dark glass outline pill */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 24px;
+  background: rgba(255,255,255,0.06) !important;
+  color: #FFFFFF !important;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 100px !important;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+.btn-secondary:active { transform: scale(0.98); }
+
+/* Ghost */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border-med);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--border-hi);
+  color: var(--text-primary);
+  background: var(--surface-3);
+}
+.btn-ghost:active { transform: scale(0.98); }
+
+/* Danger */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.15); }
+
+/* Success */
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--emerald);
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-success:hover { background: rgba(16, 185, 129, 0.18); }
+
+/* ── LABELS & BADGES ─────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  border-radius: 100px;
+  text-transform: uppercase;
+}
+
+.badge-gold {
+  background: var(--gold-dim);
+  color: var(--gold-light);
+  border: 1px solid var(--gold-border);
+}
+
+.badge-green {
+  background: var(--emerald-dim);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.badge-amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--amber-status);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.badge-dim {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-muted);
+  border: 1px solid var(--border-dim);
+}
+
+/* ── SECTION LABELS (replacing uppercase font-mono spam) ─────────────── */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.eyebrow-gold {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ── DATA IDs & CODES (where mono IS appropriate) ───────────────────── */
+.code-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ── NAVIGATION TABS ─────────────────────────────────────────────────── */
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+}
+
+.nav-tab:hover {
+  background: var(--surface-3);
+  color: var(--text-secondary);
+}
+
+.nav-tab.active {
+  background: var(--gold-dim);
+  color: var(--gold-light);
+  border: 1px solid var(--gold-border);
+}
+
+/* ── FORMS ──────────────────────────────────────────────────────────── */
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── SELECTION CARDS (match, accommodation, flight tier) ────────────── */
+.select-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-dim);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  text-align: left;
+}
+
+.select-card:hover {
+  border-color: var(--border-med);
+  background: var(--surface-3);
+}
+
+.select-card.selected {
+  border-color: var(--gold-border);
+  background: var(--gold-dim);
+}
+
+/* ── STATUS INDICATORS ───────────────────────────────────────────────── */
+.status-granted {
+  color: var(--emerald);
+}
+.status-pending {
+  color: var(--amber-status);
+}
+.status-rejected {
+  color: var(--red-status);
+}
+
+/* ── TIMELINE ─────────────────────────────────────────────────────────── */
+.timeline-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-dim);
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -5px;
+  top: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+
+/* ── PROGRESS BAR ─────────────────────────────────────────────────────── */
+.progress-track {
+  width: 100%;
+  height: 2px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── STEP NODES ──────────────────────────────────────────────────────── */
+.step-node {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-med);
+  background: var(--surface-0);
+  flex-shrink: 0;
+}
+
+.step-node.done {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.2);
+}
+
+/* ── DIVIDERS ────────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border-dim);
+  border: none;
+  margin: 0;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────────── */
+.platform-header {
+  border-bottom: 1px solid var(--border-dim);
+  backdrop-filter: blur(12px);
+  background: rgba(6, 10, 20, 0.8);
+}
+
+/* ── SCROLLBAR ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+/* ── CHAT BUBBLES (support) ──────────────────────────────────────────── */
+.bubble-user {
+  background: var(--surface-3);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px 12px 2px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+.bubble-admin {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  border-radius: 12px 12px 12px 2px;
+  color: var(--gold-light);
+  font-size: 13px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+/* ── ERROR STATE ─────────────────────────────────────────────────────── */
+.error-box {
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ── INFO / WARNING STRIP ────────────────────────────────────────────── */
+.info-strip {
+  padding: 12px 16px;
+  background: rgba(201, 168, 76, 0.06);
+  border: 1px solid var(--gold-border);
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ── METRIC CARDS ─────────────────────────────────────────────────────── */
+.metric-card {
+  padding: 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px;
+}
+
+.metric-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--text-primary);
+  line-height: 1;
+  margin: 4px 0;
+}
+
+.metric-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── HEADER WORDMARK ─────────────────────────────────────────────────── */
+.wordmark-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.wordmark-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ── PRINT ────────────────────────────────────────────────────────────── */
+@media print {
+  body { background: white !important; color: black !important; }
+  .card, .card-elevated, .card-accent { background: white !important; border-color: #e5e7eb !important; }
+  .btn-primary, .btn-ghost, .btn-danger, .btn-success { display: none !important; }
+}
+
+/* ── ANIMATIONS ───────────────────────────────────────────────────────── */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 24s linear infinite; }
+
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse-gold { animation: pulse-gold 2s ease-in-out infinite; }
+
+@keyframes dash {
+  to { stroke-dashoffset: -40; }
+}
+.animate-dash {
+  stroke-dasharray: 6;
+  animation: dash 5s linear infinite;
+}
+
+/* ── FADE IN ──────────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease forwards; }
+
+/* ── LEGACY OVERRIDES (neutralizing old class styles) ────────────────── */
+
+/* Kill the scanlines — they never looked good */
+.bg-scanlines { background: none !important; }
+
+/* Kill the cybergrid noise */
+.bg-cybergrid { background: none !important; }
+.bg-map-grid { background: none !important; }
+
+/* Shadow glow toned down */
+.shadow-glow-emerald { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1) !important; }
+
+/* Tailwind resets for font-mono overuse:
+   Any element using font-mono in the existing components gets a softer mono font */
+.font-mono {
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.02em;
+}
+
+/* Ensure zinc-950 backgrounds use our surface token */
+.bg-zinc-950, .bg-zinc-950\/80, .bg-zinc-950\/85, .bg-zinc-950\/90 {
+  background-color: var(--surface-1) !important;
+}
+
+.bg-zinc-900, .bg-zinc-900\/40, .bg-zinc-900\/30, .bg-zinc-900\/60 {
+  background-color: var(--surface-2) !important;
+}
+
+/* Border corrections */
+.border-zinc-800, .border-zinc-900 {
+  border-color: var(--border-dim) !important;
+}
+
+/* Text color corrections */
+.text-zinc-400 { color: var(--text-secondary) !important; }
+.text-zinc-500 { color: var(--text-muted) !important; }
+.text-zinc-600 { color: var(--text-muted) !important; }
+.text-white    { color: var(--text-primary) !important; }
+
+/* Gold/amber text — map to our single gold token */
+.text-amber-400, .text-\[\#FFDF80\], .text-\[\#E5AF40\] {
+  color: var(--gold-light) !important;
+}
+.text-amber-300 { color: var(--gold) !important; }
+
+/* Amber backgrounds — map to gold-dim */
+.bg-amber-500\/10, .bg-\[#E5AF40\]\/10, .bg-amber-400\/10 {
+  background-color: var(--gold-dim) !important;
+}
+
+/* Gold button override */
+.bg-gradient-to-r.from-amber-500,
+.bg-amber-500,
+.bg-\[#E5AF40\] {
+  background: var(--gold) !important;
+  background-image: none !important;
+  color: #0A0F1E !important;
+}
+
+.hover\:bg-amber-400:hover,
+.hover\:from-amber-400:hover {
+  background: var(--gold-light) !important;
+  background-image: none !important;
+}
+
+/* Rounded corners — harmonize to our scale */
+.rounded-3xl { border-radius: 16px !important; }
+.rounded-2xl { border-radius: 14px !important; }
+.rounded-xl  { border-radius: 10px !important; }
+.rounded-lg  { border-radius: 8px !important; }
+
+/* Remove tracking-widest from everything — it was being used too broadly.
+   Only badges and eyebrows should have wide tracking. */
+.tracking-widest { letter-spacing: 0.06em !important; }
+
+/* Correct the header brand text */
+.text-\[\#FFDF80\] { color: var(--gold-light) !important; }
+
+/* Emerald status */
+.text-emerald-400 { color: var(--emerald) !important; }
+.bg-emerald-500\/10 { background-color: var(--emerald-dim) !important; }
+.border-emerald-500\/20 { border-color: rgba(16,185,129,0.2) !important; }
+
+/* Red status */
+.text-red-200 { color: #fca5a5 !important; }
+.bg-red-950\/40 { background-color: rgba(127,29,29,0.3) !important; }
+.border-red-500\/30 { border-color: rgba(239,68,68,0.25) !important; }
+
+/* Backdrop blur cards */
+.backdrop-blur-2xl { backdrop-filter: blur(24px) !important; }
+.backdrop-blur-xl  { backdrop-filter: blur(16px) !important; }
+
+/* Typography: reduce the uppercase tracking-widest h2 elements inside components */
+h2.uppercase, h3.uppercase, h4.uppercase {
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase;
+}
+
+/* Improve tab role selectors from the existing components */
+.bg-amber-400\/10.text-amber-400.border.border-amber-500\/20 {
+  background: var(--gold-dim) !important;
+  color: var(--gold-light) !important;
+  border-color: var(--gold-border) !important;
+}
+
+/* Remove pseudo-terminal styling from scan line containers */
+.bg-zinc-950.border.border-zinc-800.rounded-3xl {
+  background: var(--surface-1) !important;
+  border-color: var(--border-dim) !important;
+}
