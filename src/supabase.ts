@@ -1,23 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 import { Application, Announcement, SupportTicket } from './types';
 
-const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+// 1. Live Supabase Credentials
+const supabaseUrl = 'https://mydhrhcpkpmqopyfekdj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15ZGhyaGNwa3BtcW9weWZla2RqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzIxMzcsImV4cCI6MjA5ODA0ODEzN30.UEmJuZMcBO2jmC3jwTjc__hz-IHsUuI5KpoB6jiUVNI';
 
-// Initialize Supabase. Check if URL/key exist to detect if we have connected.
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const isSupabaseConfigured = true;
 
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// Initialize single strongly-typed client
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-console.log(
-  isSupabaseConfigured
-    ? '✨ Supabase Configured: Client initialized successfully.'
-    : '⚖️ Supabase Demo Mode: Missing credentials. Operating via local storage backup.'
-);
+// =========================================================================
+// SECURE SERVER-SIDE ONLY: export supabaseAdmin client securely commented out
+// =========================================================================
+/*
+const supabaseServiceRoleKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15ZGhyaGNwa3BtcW9weWZla2RqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MjQ3MjEzNywiZXhwIjoyMDk4MDQ4MTM3fQ.ytzgkr_gYVY6omRUv8dqWqQPNRcYMvu8_ZfhZPJfzG8';
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+*/
 
-// Fallback database handlers using LocalStorage (fully aligned with actual Supabase schemas)
+// Fallback database handlers using LocalStorage
 class LocalDbService {
   getApplications(): Application[] {
     const saved = localStorage.getItem('fifa_supabase_applications');
@@ -87,9 +93,6 @@ const localDb = new LocalDbService();
 export const dbService = {
   // Applications
   async fetchApplications(): Promise<Application[]> {
-    if (!isSupabaseConfigured || !supabase) {
-      return localDb.getApplications();
-    }
     try {
       const { data, error } = await supabase
         .from('applications')
@@ -98,55 +101,77 @@ export const dbService = {
       if (error) throw error;
       return (data || []) as Application[];
     } catch (err) {
-      console.error('Supabase fetch applications error, falling back:', err);
+      console.warn('Supabase fetch applications failed, using local storage:', err);
       return localDb.getApplications();
     }
   },
 
   async insertApplication(app: Application): Promise<void> {
     localDb.saveApplication(app);
-    if (!isSupabaseConfigured || !supabase) return;
     try {
-      const { error } = await supabase.from('applications').upsert(app);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id || null;
+      
+      const record = {
+        id: app.id,
+        user_id: userId,
+        application_number: app.applicationNumber,
+        timestamp: app.timestamp,
+        personal_info: app.personalInfo,
+        address_info: app.addressInfo,
+        passport_info: app.passportInfo,
+        documents: app.documents,
+        travel_origin: app.travelOrigin,
+        match_preferences: app.matchPreferences,
+        attendance_type: app.attendanceType,
+        accommodation_preferences: app.accommodationPreferences,
+        additional_info: app.additionalInfo,
+        cost_breakdown: app.costBreakdown,
+        status: app.status,
+        application_score: app.applicationScore,
+        travel_readiness_score: app.travelReadinessScore,
+        priority_level: app.priorityLevel,
+        approval_timeline: app.approvalTimeline,
+        reservation_status: app.reservationStatus,
+        attendance_index: app.attendanceIndex,
+        payment_details: app.paymentDetails
+      };
+
+      const { error } = await supabase.from('applications').upsert(record);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase save application error:', err);
+      console.error('Supabase save application failed:', err);
     }
   },
 
   async updateApplicationStatus(appId: string, status: Application['status']): Promise<void> {
     localDb.updateApplicationStatus(appId, status);
-    if (!isSupabaseConfigured || !supabase) return;
     try {
       const { error } = await supabase
         .from('applications')
         .update({ 
           status, 
-          reservationStatus: status === 'CLEARANCE_GRANTED' ? 'CONFIRMED' : 'PROVISIONAL' 
+          reservation_status: status === 'CLEARANCE_GRANTED' ? 'CONFIRMED' : 'PROVISIONAL' 
         })
         .eq('id', appId);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase update application status error:', err);
+      console.error('Supabase update application status failed:', err);
     }
   },
 
   async deleteApplication(appId: string): Promise<void> {
     localDb.deleteApplication(appId);
-    if (!isSupabaseConfigured || !supabase) return;
     try {
       const { error } = await supabase.from('applications').delete().eq('id', appId);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase delete application error:', err);
+      console.error('Supabase delete application failed:', err);
     }
   },
 
   // Announcements
   async fetchAnnouncements(): Promise<Announcement[]> {
-    if (!isSupabaseConfigured || !supabase) {
-      return localDb.getAnnouncements();
-    }
     try {
       const { data, error } = await supabase
         .from('announcements')
@@ -155,60 +180,80 @@ export const dbService = {
       if (error) throw error;
       return (data || []) as Announcement[];
     } catch (err) {
-      console.error('Supabase fetch announcements error, falling back:', err);
+      console.warn('Supabase fetch announcements failed, using local storage:', err);
       return localDb.getAnnouncements();
     }
   },
 
   async insertAnnouncement(ann: Announcement): Promise<void> {
     localDb.saveAnnouncement(ann);
-    if (!isSupabaseConfigured || !supabase) return;
     try {
-      const { error } = await supabase.from('announcements').insert(ann);
+      const record = {
+        id: ann.id,
+        timestamp: ann.timestamp,
+        title: ann.title,
+        content: ann.content,
+        scope: ann.scope,
+        target_country: ann.targetCountry
+      };
+      const { error } = await supabase.from('announcements').insert(record);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase save announcement error:', err);
+      console.error('Supabase save announcement failed:', err);
     }
   },
 
   // Support Tickets
   async fetchTickets(): Promise<SupportTicket[]> {
-    if (!isSupabaseConfigured || !supabase) {
-      return localDb.getTickets();
-    }
     try {
       const { data, error } = await supabase
         .from('tickets')
         .select('*')
         .order('id', { ascending: false });
       if (error) throw error;
-      return (data || []) as SupportTicket[];
+      
+      return (data || []).map((t: any) => ({
+        id: t.id,
+        applicationId: t.application_id,
+        applicationNumber: t.application_number,
+        userId: t.user_id,
+        userName: t.user_name,
+        subject: t.subject,
+        status: t.status,
+        messages: t.messages
+      })) as SupportTicket[];
     } catch (err) {
-      console.error('Supabase fetch tickets error, falling back:', err);
+      console.warn('Supabase fetch tickets failed, using local storage:', err);
       return localDb.getTickets();
     }
   },
 
   async insertTicket(ticket: SupportTicket): Promise<void> {
     localDb.saveTicket(ticket);
-    if (!isSupabaseConfigured || !supabase) return;
     try {
-      const { error } = await supabase.from('tickets').upsert(ticket);
+      const record = {
+        id: ticket.id,
+        application_id: ticket.applicationId,
+        application_number: ticket.applicationNumber,
+        user_id: ticket.userId,
+        user_name: ticket.userName,
+        subject: ticket.subject,
+        status: ticket.status,
+        messages: ticket.messages
+      };
+      const { error } = await supabase.from('tickets').upsert(record);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase save ticket error:', err);
+      console.error('Supabase save ticket failed:', err);
     }
   },
 
   async updateTicketMessages(ticketId: string, messages: any[]): Promise<void> {
-    if (!isSupabaseConfigured || !supabase) {
-      const tkts = localDb.getTickets();
-      const matchIndex = tkts.findIndex((t) => t.id === ticketId);
-      if (matchIndex >= 0) {
-        tkts[matchIndex].messages = messages;
-        localStorage.setItem('fifa_supabase_tickets', JSON.stringify(tkts));
-      }
-      return;
+    const tkts = localDb.getTickets();
+    const matchIndex = tkts.findIndex((t) => t.id === ticketId);
+    if (matchIndex >= 0) {
+      tkts[matchIndex].messages = messages;
+      localStorage.setItem('fifa_supabase_tickets', JSON.stringify(tkts));
     }
     try {
       const { error } = await supabase
@@ -217,7 +262,7 @@ export const dbService = {
         .eq('id', ticketId);
       if (error) throw error;
     } catch (err) {
-      console.error('Supabase update ticket message error:', err);
+      console.error('Supabase update ticket messages failed:', err);
     }
   }
 };
@@ -227,10 +272,6 @@ export const dbService = {
  */
 export const fileUploadService = {
   async uploadDocument(file: File, path: string): Promise<string> {
-    if (!isSupabaseConfigured || !supabase) {
-      // Return local placeholder object representing file URL
-      return URL.createObjectURL(file);
-    }
     try {
       const { data, error } = await supabase.storage
         .from('documents')
@@ -243,7 +284,7 @@ export const fileUploadService = {
         
       return publicUrlData.publicUrl;
     } catch (err) {
-      console.error('Supabase upload error, fallback to blob:', err);
+      console.error('Supabase upload failed, using blob fallback:', err);
       return URL.createObjectURL(file);
     }
   }
@@ -254,7 +295,6 @@ export const fileUploadService = {
  */
 export const authService = {
   async signUp(email: string): Promise<boolean> {
-    if (!isSupabaseConfigured || !supabase) return true;
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -269,18 +309,40 @@ export const authService = {
   },
 
   async signIn(email: string, role: string): Promise<boolean> {
-    if (!isSupabaseConfigured || !supabase) return true;
     try {
-      // Check if signed in
       const { error } = await supabase.auth.signInWithPassword({
         email,
-        password: 'TemporaryTravelerPassword123!',
+        password: role === 'admin' ? 'ADMIN2026' : 'TemporaryTravelerPassword123!',
       });
-      // Accept even on local fallback during testing
+      if (error) {
+        // Fallback: If user is new to Supabase Auth, automatically register them
+        if (error.message.includes('Invalid login credentials')) {
+          await supabase.auth.signUp({
+            email,
+            password: role === 'admin' ? 'ADMIN2026' : 'TemporaryTravelerPassword123!',
+          });
+        }
+      }
       return true;
     } catch (err) {
       console.warn('Supabase sign-in ignored, operating locally/gracefully.', err);
       return true;
+    }
+  },
+
+  async getUserRole(email: string): Promise<'traveler' | 'admin'> {
+    try {
+      // Query profiles table
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('email', email.toLowerCase())
+        .single();
+      if (error) throw error;
+      return (data?.role || 'traveler') as 'traveler' | 'admin';
+    } catch (err) {
+      console.warn('Could not fetch user role from Supabase, default to traveler:', err);
+      return 'traveler';
     }
   }
 };

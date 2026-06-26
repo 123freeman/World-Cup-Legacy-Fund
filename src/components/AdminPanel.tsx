@@ -40,6 +40,47 @@ export default function AdminPanel({
   const [dmMessage, setDmMessage] = useState('');
   const [dmSent, setDmSent] = useState(false);
 
+  // Payment states
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [paymentCryptoFilter, setPaymentCryptoFilter] = useState<'ALL' | 'ETH' | 'BTC' | 'SOL'>('ALL');
+  const [selectedPaymentApp, setSelectedPaymentApp] = useState<Application | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [internalNotesText, setInternalNotesText] = useState('');
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
+  const paymentFilteredApps = applications.filter(app => {
+    const hasPaymentInfo = !!app.paymentDetails;
+    const isPaymentStatus = app.status === 'PENDING_VERIFICATION' || app.status === 'PAYMENT_PENDING_CONFIRMATION';
+    if (!hasPaymentInfo && !isPaymentStatus) return false;
+
+    // Filter by crypto
+    if (paymentCryptoFilter !== 'ALL') {
+      if (app.paymentDetails?.method !== paymentCryptoFilter) return false;
+    }
+
+    // Filter by status
+    if (paymentStatusFilter !== 'ALL') {
+      const payStatus = app.paymentDetails?.status || 'PENDING_VERIFICATION';
+      if (paymentStatusFilter === 'PENDING' && payStatus !== 'PENDING_VERIFICATION') return false;
+      if (paymentStatusFilter === 'APPROVED' && payStatus !== 'APPROVED') return false;
+      if (paymentStatusFilter === 'REJECTED' && payStatus !== 'REJECTED') return false;
+    }
+
+    // Search query
+    const term = paymentSearch.toLowerCase();
+    if (term) {
+      const fullName = app.personalInfo.fullName.toLowerCase();
+      const email = app.personalInfo.email.toLowerCase();
+      const appNum = app.applicationNumber.toLowerCase();
+      const appId = app.id.toLowerCase();
+      return fullName.includes(term) || email.includes(term) || appNum.includes(term) || appId.includes(term);
+    }
+
+    return true;
+  });
+
   // Broadcast Alert Composer state
   const [alertTitle, setAlertTitle] = useState('');
   const [alertContent, setAlertContent] = useState('');
@@ -484,63 +525,417 @@ export default function AdminPanel({
         {activeAdminTab === 'payments' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div className="p-4.5 bg-white/5 border border-white/8 rounded-2xl flex items-center gap-3">
-              <X className="w-5 h-5 text-white shrink-0 rotate-45" />
+              <Wallet className="w-5 h-5 text-white shrink-0" />
               <div className="font-sans text-xs">
-                <p className="text-white font-bold uppercase">Sovereign settlement audits page</p>
+                <p className="text-white font-bold uppercase">Sovereign settlement audits matrix</p>
                 <p className="text-[#8B8FA8] font-mono text-[10px] mt-0.5 uppercase">
-                  Verify currency rates against Ethereum or Solana blockchain addresses before granting final accreditee clearances manually.
+                  Verify currency rates and proof attachments before granting final accreditee clearances.
                 </p>
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl p-6 space-y-4">
-              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-widest pb-3 border-b border-white/[0.06]">
-                PENDING PAYMENTS TO VERIFY
-              </h4>
+            {/* SEARCH AND FILTERS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#5B5F78] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by traveler, email, application..."
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+                />
+              </div>
 
-              <div className="space-y-3 font-mono text-xs">
-                {applications.filter(a => a.status === 'PENDING_VERIFICATION' || a.status === 'APPROVED_AWAITING_PAYMENT').map(app => (
-                  <div key={app.id} className="p-4 rounded-xl border border-white/[0.06] bg-[#13131A] flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:border-white/[0.08] duration-150">
-                    <div>
-                      <div className="flex gap-2">
-                        <span className="text-white font-bold uppercase">{app.personalInfo.fullName}</span>
-                        <span className="text-[#5B5F78]">[{app.applicationNumber}]</span>
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                className="px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg fill='none' stroke='white' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M19 9l-7 7-7-7'></path></svg>")`, backgroundPosition: 'right 16px center', backgroundSize: '14px', backgroundRepeat: 'no-repeat' }}
+              >
+                <option value="ALL" className="bg-[#13131A] text-white">All Statuses</option>
+                <option value="PENDING" className="bg-[#13131A] text-white">Pending Verification</option>
+                <option value="APPROVED" className="bg-[#13131A] text-white">Approved</option>
+                <option value="REJECTED" className="bg-[#13131A] text-white">Rejected</option>
+              </select>
+
+              <select
+                value={paymentCryptoFilter}
+                onChange={(e) => setPaymentCryptoFilter(e.target.value as any)}
+                className="px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg fill='none' stroke='white' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M19 9l-7 7-7-7'></path></svg>")`, backgroundPosition: 'right 16px center', backgroundSize: '14px', backgroundRepeat: 'no-repeat' }}
+              >
+                <option value="ALL" className="bg-[#13131A] text-white">All Cryptocurrencies</option>
+                <option value="ETH" className="bg-[#13131A] text-white">Ethereum (ETH)</option>
+                <option value="BTC" className="bg-[#13131A] text-white">Bitcoin (BTC)</option>
+                <option value="SOL" className="bg-[#13131A] text-white">Solana (SOL)</option>
+              </select>
+            </div>
+
+            {/* PAYMENTS LIST */}
+            <div className="glass-card rounded-3xl overflow-hidden">
+              <div className="p-4 bg-[#1C1C27]/30 border-b border-white/[0.06] grid grid-cols-2 md:grid-cols-6 gap-2 font-mono text-[9px] text-[#8B8FA8] uppercase tracking-widest font-bold">
+                <span className="col-span-2">Traveler</span>
+                <span className="hidden md:inline">Crypto Asset</span>
+                <span className="hidden md:inline">Deposit (10%) / Total</span>
+                <span className="hidden md:inline">Date Submitted</span>
+                <span>Status</span>
+              </div>
+
+              {paymentFilteredApps.length > 0 ? (
+                <div className="divide-y divide-white/[0.06]">
+                  {paymentFilteredApps.map((app) => {
+                    const payDetails = app.paymentDetails;
+                    const method = payDetails?.method || 'N/A';
+                    const depositAmt = payDetails?.depositAmountUSD || (app.costBreakdown.totalUSD * 0.1);
+                    const totalAmt = app.costBreakdown.totalUSD;
+                    const cryptoAmt = payDetails?.amountCrypto;
+                    const submittedAt = payDetails?.uploadedAt ? new Date(payDetails.uploadedAt).toLocaleDateString() : 'N/A';
+                    const status = payDetails?.status || 'PENDING_VERIFICATION';
+
+                    return (
+                      <div
+                        key={app.id}
+                        onClick={() => {
+                          setSelectedPaymentApp(app);
+                          setInternalNotesText(payDetails?.internalNotes || '');
+                          setRejectionReasonText(payDetails?.rejectionReason || '');
+                          setShowRejectForm(false);
+                          setZoomScale(1);
+                        }}
+                        className={`p-4 grid grid-cols-2 md:grid-cols-6 gap-2 items-center hover:bg-[#1C1C27]/30 cursor-pointer duration-150 ${selectedPaymentApp?.id === app.id ? 'bg-[#796BFF]/5' : ''}`}
+                      >
+                        <div className="col-span-2 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#1C1C27] border border-white/[0.08] flex items-center justify-center text-xs text-[#8B8FA8]">
+                            💰
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo.fullName}</h5>
+                            <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.personalInfo.email}</span>
+                          </div>
+                        </div>
+
+                        <div className="hidden md:block font-mono text-xs text-white">
+                          {method} {cryptoAmt ? `(${cryptoAmt})` : ''}
+                        </div>
+
+                        <div className="hidden md:block font-mono text-xs text-white">
+                          <span className="font-bold text-[#B6B3FF]">${depositAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[10px] text-[#5B5F78] block">/ ${totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+
+                        <div className="hidden md:block font-mono text-[10px] text-[#8B8FA8]">
+                          {submittedAt}
+                        </div>
+
+                        <div>
+                          <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full ${
+                            status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            status === 'REJECTED' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                            'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse'
+                          }`}>
+                            {status === 'PENDING_VERIFICATION' ? 'PENDING' : status}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-[#5B5F78] mt-1 uppercase">Passport: {app.passportInfo.passportNumber}</p>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-12 text-center text-[#5B5F78] font-mono text-[11px] uppercase tracking-wider">
+                  Zero corresponding payments found in database
+                </div>
+              )}
+            </div>
+
+            {/* EXPANDED REVIEW SECTION */}
+            {selectedPaymentApp && (
+              <div className="glass-card glass-glow rounded-3xl p-6 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex justify-between items-start border-b border-white/[0.06] pb-4">
+                  <div>
+                    <span className="text-[8px] font-mono text-white uppercase tracking-widest block font-bold">PAYMENT AUDIT VIEWPORT</span>
+                    <h4 className="text-sm font-bold text-white uppercase font-sans mt-0.5">
+                      Verification Docket: {selectedPaymentApp.applicationNumber}
+                    </h4>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedPaymentApp(null)}
+                    className="text-[#5B5F78] hover:text-white font-mono text-xs cursor-pointer uppercase"
+                  >
+                    [ Close Audit Window ]
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* LEFT: Proof Viewer */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h5 className="text-[11px] font-bold text-white font-sans uppercase">Uploaded Proof document</h5>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Zoom -
+                        </button>
+                        <button
+                          onClick={() => setZoomScale(1)}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => setZoomScale(prev => Math.min(3, prev + 0.25))}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Zoom +
+                        </button>
+                        {selectedPaymentApp.paymentDetails?.proofUrl && (
+                          <a
+                            href={selectedPaymentApp.paymentDetails.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-[#796BFF]/20 hover:bg-[#796BFF]/30 text-[#B6B3FF] rounded text-[10px] font-mono inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            Open External
+                          </a>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3.5">
-                      <div className="text-right">
-                        <span className="text-[10px] text-[#5B5F78] uppercase block">Calculated Sovereign Tariff</span>
-                        <span className="text-white font-bold">{formatLocalCurrency(app.costBreakdown.totalUSD, { ...app } as any)}</span>
-                      </div>
-
-                      {currentAdminRole === 'Finance Officer' || currentAdminRole === 'Super Admin' ? (
-                        <button
-                          onClick={() => {
-                            onUpdateAppStatus(app.id, 'CLEARANCE_GRANTED');
-                            alert('Payment verified. Dossier and Clearance PDF now dispatched to the citizen.');
-                          }}
-                          className="px-4 py-2 bg-white hover:bg-zinc-100 text-[#13131A] font-bold uppercase text-[10px] tracking-wider rounded-xl cursor-pointer duration-150 active:scale-95 shadow-md"
-                        >
-                          Manual Approve Pay
-                        </button>
+                    <div className="relative border border-white/10 rounded-xl bg-zinc-950/80 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[450px]">
+                      {selectedPaymentApp.paymentDetails?.proofUrl ? (
+                        selectedPaymentApp.paymentDetails.proofUrl.toLowerCase().endsWith('.pdf') ? (
+                          <iframe 
+                            src={selectedPaymentApp.paymentDetails.proofUrl} 
+                            className="w-full h-[400px] border-none" 
+                            title="Payment Proof PDF"
+                          />
+                        ) : (
+                          <div className="w-full h-full overflow-auto p-4 flex items-center justify-center">
+                            <img
+                              src={selectedPaymentApp.paymentDetails.proofUrl}
+                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.15s ease' }}
+                              className="max-w-full max-h-[380px] object-contain rounded-lg"
+                              alt="Payment Proof document"
+                            />
+                          </div>
+                        )
                       ) : (
-                        <div className="text-[9px] font-mono text-[#5B5F78] bg-[#1C1C27] px-2.5 py-1 rounded">
-                          FINANCE CLEARANCE REQ.
-                        </div>
+                        <span className="text-[#5B5F78] font-mono text-xs uppercase">No proof file on record</span>
                       )}
                     </div>
                   </div>
-                ))}
 
-                {applications.filter(a => a.status === 'PENDING_VERIFICATION' || a.status === 'APPROVED_AWAITING_PAYMENT').length === 0 && (
-                  <div className="text-center py-8 text-[#5B5F78] font-mono text-[10px] uppercase">
-                    Zero unresolved crypto payments registered in transit
+                  {/* RIGHT: Transaction Metadata and Actions */}
+                  <div className="space-y-5 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      {/* Details list */}
+                      <div className="grid grid-cols-2 gap-4 font-mono text-xs bg-[#13131A] p-4 rounded-xl border border-white/[0.06]">
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Name:</span>
+                          <span className="text-white font-sans font-bold">{selectedPaymentApp.personalInfo.fullName}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Email:</span>
+                          <span className="text-white font-sans">{selectedPaymentApp.personalInfo.email}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Crypto Asset:</span>
+                          <span className="text-white font-bold">{selectedPaymentApp.paymentDetails?.method || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Equivalent Crypto:</span>
+                          <span className="text-white font-bold">{selectedPaymentApp.paymentDetails?.amountCrypto || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Deposit Value (10%):</span>
+                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || (selectedPaymentApp.costBreakdown.totalUSD * 0.1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Package Total Value:</span>
+                          <span className="text-white font-bold">${selectedPaymentApp.costBreakdown.totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Submission Date:</span>
+                          <span className="text-white">{selectedPaymentApp.paymentDetails?.uploadedAt ? new Date(selectedPaymentApp.paymentDetails.uploadedAt).toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Current Payment Status:</span>
+                          <span className="text-white font-bold uppercase">{selectedPaymentApp.paymentDetails?.status || 'PENDING'}</span>
+                        </div>
+                      </div>
+
+                      {/* Internal Notes textarea */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">
+                          Treasury Internal Notes
+                        </label>
+                        <div className="flex gap-2">
+                          <textarea
+                            rows={3}
+                            value={internalNotesText}
+                            onChange={(e) => setInternalNotesText(e.target.value)}
+                            placeholder="Add administrative notes regarding this transaction..."
+                            className="flex-1 px-3 py-2 rounded-xl glass-input text-xs text-white placeholder-zinc-600 focus:outline-none font-sans resize-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updatedApp: Application = {
+                                ...selectedPaymentApp,
+                                paymentDetails: {
+                                  ...selectedPaymentApp.paymentDetails!,
+                                  internalNotes: internalNotesText
+                                }
+                              };
+                              await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                              setSelectedPaymentApp(updatedApp);
+                              alert('Treasury notes saved successfully.');
+                            }}
+                            className="px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-sans font-bold uppercase cursor-pointer"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Rejection UI Form if requested */}
+                      {showRejectForm && (
+                        <div className="p-4 bg-red-950/20 border border-red-500/20 rounded-xl space-y-3 animate-in slide-in-from-bottom-2 duration-200">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-mono text-red-400 uppercase tracking-widest block font-bold">
+                              Reason for Rejection
+                            </label>
+                            <textarea
+                              rows={2}
+                              required
+                              value={rejectionReasonText}
+                              onChange={(e) => setRejectionReasonText(e.target.value)}
+                              placeholder="e.g. Transaction hash could not be verified on the Solana explorer, or proof document is too blurry."
+                              className="w-full px-3 py-2 rounded-lg border border-red-500/20 bg-[#13131A]/60 text-xs text-white placeholder-red-300/20 focus:outline-none focus:border-red-500/40 font-sans"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!rejectionReasonText.trim()) {
+                                  alert('Please enter a reason for rejecting the payment proof.');
+                                  return;
+                                }
+                                
+                                const updatedApp: Application = {
+                                  ...selectedPaymentApp,
+                                  status: 'APPROVED_AWAITING_PAYMENT',
+                                  paymentDetails: {
+                                    ...selectedPaymentApp.paymentDetails!,
+                                    status: 'REJECTED',
+                                    rejectionReason: rejectionReasonText,
+                                    internalNotes: internalNotesText
+                                  }
+                                };
+
+                                // Write notification to traveler inbox
+                                const userEmail = selectedPaymentApp.personalInfo.email.toLowerCase();
+                                const userKey = `fifa_inbox_${userEmail}`;
+                                const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
+                                userInbox.unshift({
+                                  id: `notif_${Date.now()}`,
+                                  subject: 'Deposit Payment Rejected',
+                                  message: `Your deposit proof of payment has been rejected by our financial officers. Reason: ${rejectionReasonText}. Please submit a valid transaction proof on the Payment Deck.`,
+                                  from: 'Treasury Department',
+                                  sentAt: new Date().toISOString(),
+                                  read: false
+                                });
+                                localStorage.setItem(userKey, JSON.stringify(userInbox));
+
+                                await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                                setSelectedPaymentApp(updatedApp);
+                                setShowRejectForm(false);
+                                alert('Payment proof rejected and citizen notified.');
+                              }}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-sans font-bold uppercase cursor-pointer"
+                            >
+                              Confirm Rejection
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowRejectForm(false)}
+                              className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-lg text-[10px] font-sans font-bold uppercase cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Operator actions row */}
+                    {!showRejectForm && (
+                      <div className="flex gap-3 justify-end pt-4 border-t border-white/[0.06] flex-wrap">
+                        {(currentAdminRole === 'Finance Officer' || currentAdminRole === 'Super Admin') && (
+                          <>
+                            {selectedPaymentApp.paymentDetails?.status !== 'APPROVED' && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const updatedApp: Application = {
+                                    ...selectedPaymentApp,
+                                    status: 'CLEARANCE_GRANTED',
+                                    reservationStatus: 'CONFIRMED',
+                                    paymentDetails: {
+                                      ...selectedPaymentApp.paymentDetails!,
+                                      status: 'APPROVED',
+                                      approvedAt: new Date().toISOString(),
+                                      internalNotes: internalNotesText
+                                    }
+                                  };
+
+                                  // Write success notification to traveler inbox
+                                  const userEmail = selectedPaymentApp.personalInfo.email.toLowerCase();
+                                  const userKey = `fifa_inbox_${userEmail}`;
+                                  const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
+                                  userInbox.unshift({
+                                    id: `notif_${Date.now()}`,
+                                    subject: 'Accreditation Pass & Payment Approved',
+                                    message: 'Sovereign deposit settlement verified. Your security clearance is now fully active. Luxury accommodation coordinates and aviation log parameters have been unlocked in your cabinet.',
+                                    from: 'Security Office',
+                                    sentAt: new Date().toISOString(),
+                                    read: false
+                                  });
+                                  localStorage.setItem(userKey, JSON.stringify(userInbox));
+
+                                  await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                                  setSelectedPaymentApp(updatedApp);
+                                  alert('Sovereign payment approved and travel clearance issued.');
+                                }}
+                                className="flex items-center gap-1.5 bg-white hover:bg-zinc-200 text-[#13131A] px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer active:scale-95 shadow-md"
+                              >
+                                <ShieldCheck className="w-4 h-4" /> Approve Payment
+                              </button>
+                            )}
+
+                            {selectedPaymentApp.paymentDetails?.status !== 'REJECTED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejectionReasonText('');
+                                  setShowRejectForm(true);
+                                }}
+                                className="flex items-center gap-1.5 bg-red-950 hover:bg-red-900 hover:text-white text-red-400 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer border border-red-500/20"
+                              >
+                                <X className="w-4 h-4" /> Reject Payment
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 

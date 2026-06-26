@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShieldCheck, ShieldAlert, KeyRound, ArrowRight, UserPlus, Fingerprint, RefreshCcw } from 'lucide-react';
 import { Language } from '../types';
 import { LANGUAGES } from '../localization';
+import { authService } from '../supabase';
 
 interface AuthGateProps {
   onAuthSuccess: (user: { email: string; role: 'traveler' | 'admin'; country: string }) => void;
@@ -38,12 +39,38 @@ export default function AuthGate({ onAuthSuccess, lang }: AuthGateProps) {
       setTimeout(() => {
         setScanMessage('ISSUING DIGITAL SECURITY PASS...');
         setTimeout(() => {
-          setScanning(false);
-          const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
-          onAuthSuccess({
-            email,
-            role,
-            country: selectedCountryObj.name
+          authService.signIn(email, role).then(() => {
+            authService.getUserRole(email).then((dbRole) => {
+              setScanning(false);
+              const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
+              
+              if (role === 'admin' && dbRole !== 'admin') {
+                setError('Access denied. Your database profile does not have administrative privileges.');
+                return;
+              }
+
+              onAuthSuccess({
+                email,
+                role: dbRole,
+                country: selectedCountryObj.name
+              });
+            }).catch(() => {
+              setScanning(false);
+              const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
+              onAuthSuccess({
+                email,
+                role,
+                country: selectedCountryObj.name
+              });
+            });
+          }).catch(() => {
+            setScanning(false);
+            const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
+            onAuthSuccess({
+              email,
+              role,
+              country: selectedCountryObj.name
+            });
           });
         }, 800);
       }, 800);

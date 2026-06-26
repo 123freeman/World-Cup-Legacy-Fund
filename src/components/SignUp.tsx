@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, Eye, EyeOff, UserPlus, ShieldCheck } from 'lucide-react';
 import { Language } from '../types';
 import { LANGUAGES } from '../localization';
+import { authService } from '../supabase';
 
 interface SignUpProps {
   onSignUpSuccess: (user: { email: string; password: string; country: string; fullName: string }) => void;
@@ -38,11 +39,16 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
     const account = { email: email.toLowerCase(), password, fullName, country, createdAt: new Date().toISOString() };
     localStorage.setItem(`fifa_account_${email.toLowerCase()}`, JSON.stringify(account));
 
-    setTimeout(() => {
-      setLoading(false);
-      const countryObj = LANGUAGES.find(l => l.code === country);
-      onSignUpSuccess({ email: email.toLowerCase(), password, country: countryObj?.name || country, fullName });
-    }, 1000);
+    authService.signUp(email.toLowerCase())
+      .then(() => {
+        setLoading(false);
+        const countryObj = LANGUAGES.find(l => l.code === country);
+        onSignUpSuccess({ email: email.toLowerCase(), password, country: countryObj?.name || country, fullName });
+      })
+      .catch((err) => {
+        setLoading(false);
+        setError(err.message || 'Supabase Auth registration failed.');
+      });
   };
 
   return (
