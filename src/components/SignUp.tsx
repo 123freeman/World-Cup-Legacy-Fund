@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowRight, Eye, EyeOff, UserPlus, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, UserPlus, ShieldCheck, Mail } from 'lucide-react';
 import { Language } from '../types';
 import { LANGUAGES } from '../localization';
-import { authService } from '../supabase';
+import { supabase } from '../supabase';
 
 interface SignUpProps {
   onSignUpSuccess: (user: { email: string; password: string; country: string; fullName: string }) => void;
@@ -19,8 +19,10 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [pendingUser, setPendingUser] = useState<{ email: string; password: string; country: string; fullName: string } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -29,28 +31,136 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
 
-    // Check if account already exists
     const existing = localStorage.getItem(`fifa_account_${email.toLowerCase()}`);
     if (existing) return setError('An account with this email already exists. Please log in.');
 
     setLoading(true);
 
-    // Save account to localStorage
-    const account = { email: email.toLowerCase(), password, fullName, country, createdAt: new Date().toISOString() };
-    localStorage.setItem(`fifa_account_${email.toLowerCase()}`, JSON.stringify(account));
+    try {
+      const countryObj = LANGUAGES.find(l => l.code === country);
+      const countryName = countryObj?.name || country;
 
-    authService.signUp(email.toLowerCase())
-      .then(() => {
-        setLoading(false);
-        const countryObj = LANGUAGES.find(l => l.code === country);
-        onSignUpSuccess({ email: email.toLowerCase(), password, country: countryObj?.name || country, fullName });
-      })
-      .catch((err) => {
-        setLoading(false);
-        setError(err.message || 'Supabase Auth registration failed.');
+      // Save account to localStorage so it's ready after verification
+      const account = {
+        email: email.toLowerCase(),
+        password,
+        fullName,
+        country,
+        createdAt: new Date().toISOString()
+      };
+      localStorage.setItem(`fifa_account_${email.toLowerCase()}`, JSON.stringify(account));
+
+      // Send magic link / verification email via Supabase
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: email.toLowerCase(),
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+            country: countryName,
+          }
+        }
       });
+
+      if (signUpError) throw signUpError;
+
+      setPendingUser({ email: email.toLowerCase(), password, country: countryName, fullName });
+      setVerificationSent(true);
+      setLoading(false);
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.message || 'Registration failed. Please try again.');
+    }
   };
 
+  const handleResend = async () => {
+    if (!pendingUser) return;
+    setError('');
+    try {
+      await supabase.auth.resend({
+        type: 'signup',
+        email: pendingUser.email,
+        options: { emailRedirectTo: `${window.location.origin}/` }
+      });
+    } catch (err: any) {
+      setError('Could not resend. Please try again shortly.');
+    }
+  };
+
+  // ── VERIFICATION SENT SCREEN ─────────────────────────────────────────
+  if (verificationSent && pendingUser) {
+    return (
+      <div className="max-w-md w-full mx-auto relative z-10">
+        <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
+          <div className="text-center">
+            {/* Icon */}
+            <div className="w-16 h-16 rounded-2xl bg-[#796BFF]/10 border border-[#796BFF]/20 flex items-center justify-center mx-auto mb-6">
+              <Mail className="w-7 h-7 text-[#796BFF]" />
+            </div>
+
+            <h2 className="text-xl font-bold text-white uppercase tracking-tight font-sans mb-2">
+              Check your email
+            </h2>
+            <p className="text-xs font-sans text-[#8B8FA8] leading-relaxed mb-2">
+              We sent a verification link to
+            </p>
+            <p className="text-sm font-sans font-semibold text-white mb-6">
+              {pendingUser.email}
+            </p>
+            <p className="text-xs font-sans text-[#5B5F78] leading-relaxed mb-8">
+              Click the link in the email to verify your account and complete registration. Check your spam folder if you don't see it.
+            </p>
+
+            {error && (
+              <div className="p-3.5 bg-red-950/40 border border-red-500/30 text-red-200 text-xs font-mono rounded-xl mb-4">
+                {error}
+              </div>
+            )}
+
+            {/* Resend */}
+            <button
+              type="button"
+              onClick={handleResend}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-white hover:bg-zinc-100 text-[#13131A] font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider shadow-lg cursor-pointer active:scale-95 mb-4"
+            >
+              <Mail className="w-4 h-4" />
+              Resend verification email
+            </button>
+
+            {/* Already verified */}
+            <button
+              type="button"
+              onClick={() => onSignUpSuccess(pendingUser)}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-transparent border border-white/10 hover:border-white/20 text-white font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider cursor-pointer active:scale-95"
+            >
+              <ArrowRight className="w-4 h-4" />
+              I've verified, continue
+            </button>
+
+            <div className="mt-6 pt-4 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="text-[11px] font-sans text-[#796BFF] hover:text-[#B6B3FF] font-semibold underline cursor-pointer transition"
+              >
+                Back to sign in
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center justify-center gap-2 text-[9px] font-mono text-[#5B5F78] uppercase tracking-widest">
+            <ShieldCheck className="w-3 h-3" />
+            End-to-end encrypted · Data secured
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── SIGNUP FORM ──────────────────────────────────────────────────────
   return (
     <div className="max-w-md w-full mx-auto relative z-10">
       <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
@@ -58,9 +168,7 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-            <UserPlus className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="WCLF" className="h-14 w-auto mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white uppercase tracking-tight font-sans mb-1">
             Create Your Account
           </h2>
@@ -167,7 +275,7 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
             className="w-full flex items-center justify-center gap-2 py-3.5 bg-white hover:bg-zinc-100 text-[#13131A] font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider shadow-lg cursor-pointer mt-2 active:scale-95 disabled:opacity-60"
           >
             {loading ? (
-              <span className="animate-pulse">Creating account...</span>
+              <span className="animate-pulse">Sending verification...</span>
             ) : (
               <><span>Create Account</span><ArrowRight className="w-4 h-4" /></>
             )}

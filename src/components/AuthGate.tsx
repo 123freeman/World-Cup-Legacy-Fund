@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, ShieldAlert, KeyRound, ArrowRight, UserPlus, Fingerprint, RefreshCcw } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, KeyRound, ArrowRight, UserPlus, Fingerprint } from 'lucide-react';
 import { Language } from '../types';
 import { LANGUAGES } from '../localization';
 import { authService } from '../supabase';
@@ -34,8 +34,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
 
     setScanning(true);
     setScanMessage('ESTABLISHING SECURE CONNECTION...');
-    
-    // Simulate biometric/passport decryption
+
     setTimeout(() => {
       setScanMessage('VERIFYING EU CITIZEN DETAILS...');
       setTimeout(() => {
@@ -45,72 +44,37 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
             authService.getUserRole(email).then((dbRole) => {
               setScanning(false);
               const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
-              
+
               if (role === 'admin' && dbRole !== 'admin') {
                 setError('Access denied. Your database profile does not have administrative privileges.');
                 return;
               }
 
-              onAuthSuccess({
-                email,
-                role: dbRole,
-                country: selectedCountryObj.name
-              });
+              onAuthSuccess({ email, role: dbRole, country: selectedCountryObj.name });
             }).catch(() => {
               setScanning(false);
               const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
-              onAuthSuccess({
-                email,
-                role,
-                country: selectedCountryObj.name
-              });
+              onAuthSuccess({ email, role, country: selectedCountryObj.name });
             });
           }).catch(() => {
             setScanning(false);
             const selectedCountryObj = LANGUAGES.find(l => l.code === country) || lang;
-            onAuthSuccess({
-              email,
-              role,
-              country: selectedCountryObj.name
-            });
+            onAuthSuccess({ email, role, country: selectedCountryObj.name });
           });
         }, 800);
       }, 800);
     }, 800);
   };
 
-
-  const autofillAdmin = () => {
-    setEmail('officer.uefa@fifa.acc.org');
-    setPasscode(process.env.ADMIN_PASSWORD || 'worldcuplegacyfund@081.Kokoma');
-    setRole('admin');
-    setError('');
-  };
-
-  const autofillTraveler = () => {
-    setEmail('franksaint830@gmail.com');
-    setRole('traveler');
-    setError('');
-  };
-
   return (
     <div id="auth_security_gate_container" className="max-w-md w-full mx-auto relative z-10 transition-all duration-300">
-      {/* Decorative High-Contrast Visa Badge */}
-      <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 flex flex-col items-center pointer-events-none">
-        <div className="w-1.5 h-12 bg-gradient-to-b from-white to-transparent" />
-        <div className="bg-[#13131A] px-3.5 py-1 text-[10px] tracking-[0.25em] font-sans text-white font-bold border border-white/15 rounded-full flex items-center gap-1.5">
-          <Fingerprint className="w-3.5 h-3.5 text-[#796BFF] animate-pulse" />
-          ACC_SYS v1.89
-        </div>
-      </div>
-
-      <div className="glass-card rounded-3xl p-8 relative overflow-hidden mt-8">
-        {/* Hologram scan lines */}
+      <div className="glass-card rounded-3xl p-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-scanlines opacity-[0.03] pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
-        {/* Header segment */}
+        {/* Header */}
         <div className="text-center mb-8">
+          <img src="/logo.png" alt="WCLF" className="h-14 w-auto mx-auto mb-4" />
           <h2 className="text-xl md:text-2xl font-sans font-bold text-white tracking-tight uppercase flex items-center justify-center gap-1.5">
             {role === 'admin' ? 'ADMIN DISPATCH DECK' : 'TRAVEL ACCREDITATION GATE'}
           </h2>
@@ -119,7 +83,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
           </p>
         </div>
 
-        {/* Biometric Scan Overlay */}
+        {/* Scanning overlay */}
         {scanning ? (
           <div className="py-12 flex flex-col items-center justify-center space-y-6">
             <div className="relative">
@@ -146,15 +110,12 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
               </div>
             )}
 
-            {/* Role Tab Selector */}
+            {/* Role Tab — only visible on admin path */}
             {isAdminPathAccessed && (
               <div className="grid grid-cols-2 p-1 glass rounded-xl">
                 <button
                   type="button"
-                  onClick={() => {
-                    setRole('traveler');
-                    setError('');
-                  }}
+                  onClick={() => { setRole('traveler'); setError(''); }}
                   className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
                     role === 'traveler'
                       ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
@@ -165,10 +126,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setRole('admin');
-                    setError('');
-                  }}
+                  onClick={() => { setRole('admin'); setError(''); }}
                   className={`py-2 text-[10px] md:text-xs font-sans font-bold uppercase rounded-lg transition-all cursor-pointer ${
                     role === 'admin'
                       ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30'
@@ -180,8 +138,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
               </div>
             )}
 
-
-            {/* Email field */}
+            {/* Email */}
             <div className="space-y-1.5">
               <label className="block text-[10px] font-sans font-bold uppercase text-[#8B8FA8] tracking-widest">
                 Official E-Passport Email Address
@@ -190,12 +147,12 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={role === 'admin' ? 'officer.uefa@fifa.acc.org' : 'franksaint830@gmail.com'}
+                placeholder="Enter your email address"
                 className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
               />
             </div>
 
-            {/* Passcode (Only displayed for Admin role) */}
+            {/* Passcode — admin only */}
             {role === 'admin' && (
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
                 <div className="flex justify-between items-center">
@@ -217,7 +174,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
               </div>
             )}
 
-            {/* Country Selector (For traveler role to simulate region-specific security profiles) */}
+            {/* Country — traveler only */}
             {role === 'traveler' && (
               <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
                 <label className="block text-[10px] font-sans font-bold uppercase text-[#8B8FA8] tracking-widest">
@@ -238,7 +195,7 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
               </div>
             )}
 
-            {/* Actuator Trigger Button */}
+            {/* Submit */}
             <button
               type="submit"
               className="w-full flex items-center justify-center gap-2 py-3.5 bg-white hover:bg-zinc-100 text-[#13131A] font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider shadow-lg cursor-pointer mt-4 active:scale-95"
@@ -247,33 +204,23 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
               <ArrowRight className="w-4 h-4 text-[#13131A]" />
             </button>
 
-            {/* Convenient Mock Credentials Autofillers */}
-            <div className="pt-6 border-t border-white/[0.06] flex justify-between gap-3 text-[10px] font-sans">
+            {/* Bottom links — autofill buttons removed, replaced with clean sign up link */}
+            <div className="pt-6 border-t border-white/[0.06] flex justify-center gap-3 text-[10px] font-sans">
+              <span className="text-[#5B5F78]">Don't have an account?</span>
               <button
                 type="button"
-                onClick={autofillTraveler}
-                className="flex items-center gap-1.5 text-[#8B8FA8] hover:text-[#796BFF] transition cursor-pointer font-sans font-semibold"
+                onClick={() => window.location.reload()}
+                className="flex items-center gap-1.5 text-[#796BFF] hover:text-[#B6B3FF] transition cursor-pointer font-semibold"
               >
-                <UserPlus className="w-3.5 h-3.5 text-[#796BFF]" /> Instant Traveler Credentials
+                <UserPlus className="w-3.5 h-3.5" /> Sign up
               </button>
-              {isAdminPathAccessed && (
-                <button
-                  type="button"
-                  onClick={autofillAdmin}
-                  className="flex items-center gap-1.5 text-[#8B8FA8] hover:text-[#796BFF] transition cursor-pointer font-sans font-semibold"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#796BFF]" /> Admin Login Bypass
-                </button>
-              )}
             </div>
           </form>
         )}
 
-        {/* Security Clause Stamp */}
         <div className="mt-6 text-center text-[9px] font-mono text-[#5B5F78] uppercase tracking-widest leading-relaxed">
           Security clearance and data processing handled with end-to-end encryption. All records fully secured.
         </div>
-
       </div>
     </div>
   );
