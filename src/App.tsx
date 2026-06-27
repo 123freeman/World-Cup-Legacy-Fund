@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, getTranslations } from './localization';
 import { Language, Application, Announcement, SupportTicket } from './types';
-import { dbService, isSupabaseConfigured, supabase } from './supabase';
+import { dbService, isSupabaseConfigured, supabase, authService } from './supabase';
 
 import LanguageSelector from './components/LanguageSelector';
 import AuthGate from './components/AuthGate';
@@ -138,27 +138,19 @@ function FloatingHeader({ currentLanguage, onLanguageChange, activeUser, onLogoC
         width: '100%', maxWidth: '1120px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        {/* Logo */}
         <div onClick={onLogoClick} style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
           <img src="/logo.png" alt="WCLF" style={{ height: '60px', width: 'auto' }} />
         </div>
-
-        {/* Center — empty spacer to keep layout balanced */}
         <div />
-
-        {/* Right Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <LanguageSelector currentLanguage={currentLanguage} onLanguageChange={onLanguageChange} />
           {activeUser ? (
             <button onClick={onUserClick}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: '6px',
-                padding: '8px 18px',
-                background: '#0C0D12',
-                border: 'none',
+                padding: '8px 18px', background: '#0C0D12', border: 'none',
                 borderRadius: '100px', fontSize: '13px', fontWeight: 600,
-                color: '#fff', cursor: 'pointer',
-                transition: 'opacity 0.15s',
+                color: '#fff', cursor: 'pointer', transition: 'opacity 0.15s',
               }} onMouseEnter={e => e.currentTarget.style.opacity = '0.9'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               <ShieldCheck size={14} />
               <span className="hide-mobile">{activeUser.email.split('@')[0]}</span>
@@ -166,12 +158,9 @@ function FloatingHeader({ currentLanguage, onLanguageChange, activeUser, onLogoC
           ) : (
             <button onClick={onUserClick}
               style={{
-                padding: '8px 20px',
-                background: '#0C0D12',
-                border: 'none',
+                padding: '8px 20px', background: '#0C0D12', border: 'none',
                 borderRadius: '100px', fontSize: '13px', fontWeight: 600,
-                color: '#fff', cursor: 'pointer',
-                transition: 'opacity 0.15s',
+                color: '#fff', cursor: 'pointer', transition: 'opacity 0.15s',
               }} onMouseEnter={e => e.currentTarget.style.opacity = '0.9'} onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
               Use Gate
             </button>
@@ -189,258 +178,89 @@ function StatCard({ value, label, sub }: { value: string; label: string; sub?: s
       border: '1px solid var(--border-dim)', borderRadius: '16px',
       display: 'flex', flexDirection: 'column', gap: '6px',
     }}>
-      <span style={{
-        fontFamily: 'var(--font-sans)', fontSize: 'clamp(26px, 4vw, 36px)',
-        fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.025em',
-      }}>{value}</span>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'clamp(26px, 4vw, 36px)', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.025em' }}>{value}</span>
       <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{label}</span>
       {sub && <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{sub}</span>}
     </div>
   );
 }
 
-// ── PHONE FRAME ──────────────────────────────────────────────────────────
 function PhoneFrame({ src, width, height, prominent }: { src: string; width: number; height: number; prominent?: boolean }) {
   const radius = Math.round(width * 0.13);
   const notchW = Math.round(width * 0.35);
   const notchH = 14;
   const border = prominent ? 2 : 1.5;
-
   return (
     <div style={{
-      width: `${width}px`,
-      height: `${height}px`,
-      borderRadius: `${radius}px`,
+      width: `${width}px`, height: `${height}px`, borderRadius: `${radius}px`,
       border: `${border}px solid rgba(255,255,255,${prominent ? 0.18 : 0.10})`,
-      background: '#000',
-      position: 'relative',
-      overflow: 'hidden',
+      background: '#000', position: 'relative', overflow: 'hidden',
       boxShadow: prominent
         ? '0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06), 0 0 60px rgba(121,107,255,0.15)'
         : '0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
       flexShrink: 0,
     }}>
-      {/* Screen image */}
-      <img
-        src={src}
-        alt="Trophy showcase"
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'center',
-          display: 'block',
-        }}
-      />
-
-      {/* Dynamic island / notch */}
-      <div style={{
-        position: 'absolute',
-        top: '12px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: `${notchW}px`,
-        height: `${notchH}px`,
-        background: '#000',
-        borderRadius: `${notchH}px`,
-        zIndex: 10,
-      }} />
-
-      {/* Glare overlay */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 50%)',
-        pointerEvents: 'none',
-        zIndex: 5,
-      }} />
+      <img src={src} alt="Trophy showcase" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }} />
+      <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', width: `${notchW}px`, height: `${notchH}px`, background: '#000', borderRadius: `${notchH}px`, zIndex: 10 }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 50%)', pointerEvents: 'none', zIndex: 5 }} />
     </div>
   );
 }
 
-// ── HOMEPAGE ─────────────────────────────────────────────────────────────
-function HomeLanding({ onApply, onAccess }: {
-  onApply: () => void; onAccess: () => void;
-}) {
+function HomeLanding({ onApply, onAccess }: { onApply: () => void; onAccess: () => void }) {
   return (
     <div style={{ maxWidth: '1120px', margin: '0 auto', width: '100%' }}>
-
-      {/* ── HERO ── */}
-      <section style={{
-        paddingTop: 'clamp(60px, 8vw, 100px)',
-        paddingBottom: 'clamp(40px, 6vw, 80px)',
-        textAlign: 'center', maxWidth: '860px', margin: '0 auto',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        padding: 'clamp(60px,8vw,100px) 16px clamp(40px,6vw,80px)',
-      }}>
-        {/* Logo pill */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '9px',
-          padding: '6px 14px',
-          marginBottom: '32px',
-          borderRadius: '100px',
-          background: 'rgba(121, 107, 255, 0.08)',
-          border: '1px solid rgba(121, 107, 255, 0.15)',
-        }}>
-          <svg width="14" height="14" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16 2C9.373 2 4 7.373 4 14C4 20.627 9.373 26 16 26C22.627 26 28 20.627 28 14C28 7.373 22.627 2 16 2ZM16 23C11.028 23 7 18.972 7 14C7 9.028 11.028 5 16 5C20.972 5 25 9.028 25 14C25 18.972 20.972 23 16 23Z" fill="#B6B3FF" />
-          </svg>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#B6B3FF', letterSpacing: '0.03em' }}>
-            WCLF Pro Portal
-          </span>
+      <section style={{ textAlign: 'center', maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'clamp(60px,8vw,100px) 16px clamp(40px,6vw,80px)' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '9px', padding: '6px 14px', marginBottom: '32px', borderRadius: '100px', background: 'rgba(121, 107, 255, 0.08)', border: '1px solid rgba(121, 107, 255, 0.15)' }}>
+          <svg width="14" height="14" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 2C9.373 2 4 7.373 4 14C4 20.627 9.373 26 16 26C22.627 26 28 20.627 28 14C28 7.373 22.627 2 16 2ZM16 23C11.028 23 7 18.972 7 14C7 9.028 11.028 5 16 5C20.972 5 25 9.028 25 14C25 18.972 20.972 23 16 23Z" fill="#B6B3FF" /></svg>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#B6B3FF', letterSpacing: '0.03em' }}>WCLF Pro Portal</span>
         </div>
-
-        {/* Headline */}
-        <h1 style={{
-          fontSize: 'clamp(36px, 6vw, 76px)',
-          fontWeight: 800, color: '#FFFFFF',
-          lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: '20px',
-          maxWidth: '720px'
-        }}>
+        <h1 style={{ fontSize: 'clamp(36px, 6vw, 76px)', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.05, letterSpacing: '-0.03em', marginBottom: '20px', maxWidth: '720px' }}>
           Your accreditation, end to end.
         </h1>
-
-        {/* Subtitle */}
-        <p style={{
-          fontSize: 'clamp(14px, 1.8vw, 16px)', color: '#8B8FA8',
-          lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 36px', fontWeight: 400,
-        }}>
+        <p style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: '#8B8FA8', lineHeight: 1.6, maxWidth: '480px', margin: '0 auto 36px', fontWeight: 400 }}>
           Secure clearance, premium logistics, and fast-track stadium access for European attendees travelling to FIFA World Cup 2026.
         </p>
-
-        {/* Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <button onClick={onApply} className="btn-primary">
-            Get Started
-          </button>
-          <button onClick={onAccess} className="btn-secondary">
-            Learn More
-          </button>
+          <button onClick={onApply} className="btn-primary">Get Started</button>
+          <button onClick={onAccess} className="btn-secondary">Learn More</button>
         </div>
       </section>
 
-      {/* ── PHONE SHOWCASE ── */}
-      <section style={{
-        padding: '0 24px',
-        marginBottom: '72px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-        gap: '0px',
-        minHeight: '420px',
-        position: 'relative',
-      }}>
-
-        {/* Glow backdrop */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'radial-gradient(ellipse 60% 50% at 50% 80%, rgba(121,107,255,0.12) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* LEFT PHONE — angle1.jpg, tilted left, behind */}
-        <div style={{
-          transform: 'rotate(-12deg) translateX(40px) translateY(24px)',
-          zIndex: 1,
-          flexShrink: 0,
-        }}>
+      <section style={{ padding: '0 24px', marginBottom: '72px', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '0px', minHeight: '420px', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 60% 50% at 50% 80%, rgba(121,107,255,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ transform: 'rotate(-12deg) translateX(40px) translateY(24px)', zIndex: 1, flexShrink: 0 }}>
           <PhoneFrame src="/trophy/angle 1.jpg" width={200} height={400} />
         </div>
-
-        {/* CENTER PHONE — angle4.jpg, upright, front */}
-        <div style={{
-          transform: 'translateY(0px)',
-          zIndex: 3,
-          flexShrink: 0,
-        }}>
+        <div style={{ transform: 'translateY(0px)', zIndex: 3, flexShrink: 0 }}>
           <PhoneFrame src="/trophy/angle 4.jpg" width={240} height={480} prominent />
         </div>
-
-        {/* RIGHT PHONE — angle6.jpg, tilted right, behind */}
-        <div style={{
-          transform: 'rotate(12deg) translateX(-40px) translateY(24px)',
-          zIndex: 1,
-          flexShrink: 0,
-        }}>
+        <div style={{ transform: 'rotate(12deg) translateX(-40px) translateY(24px)', zIndex: 1, flexShrink: 0 }}>
           <PhoneFrame src="/trophy/angle 6.jpg" width={200} height={400} />
         </div>
-
       </section>
 
-      {/* ── STRATEGIES / MARKETS SECTION ── */}
       <section style={{ padding: '0 24px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', marginBottom: '10px' }}>
-            Markets for every strategy.
-          </h2>
-          <p style={{ fontSize: '14px', color: '#8B8FA8', maxWidth: '520px', lineHeight: 1.5, margin: '0 auto' }}>
-            From standard security credentials to executive VIP helipad clearances, select the accreditation track that fits your travel portfolio.
-          </p>
+          <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, color: '#FFFFFF', letterSpacing: '-0.02em', marginBottom: '10px' }}>Markets for every strategy.</h2>
+          <p style={{ fontSize: '14px', color: '#8B8FA8', maxWidth: '520px', lineHeight: 1.5, margin: '0 auto' }}>From standard security credentials to executive VIP helipad clearances, select the accreditation track that fits your travel portfolio.</p>
         </div>
-
-        {/* 3 Columns */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-          
-          {/* Card 1 */}
-          <div style={{
-            background: '#121420',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            transition: 'border-color 0.2s',
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(121, 107, 255, 0.4)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#B6B3FF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>General Clearance</span>
-            <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>Standard • Core</h4>
-            <p style={{ fontSize: '13px', color: '#8B8FA8', lineHeight: 1.5, margin: 0 }}>
-              Basic visa waiver, security screening, and general stadium accreditation.
-            </p>
-          </div>
-
-          {/* Card 2 */}
-          <div style={{
-            background: '#121420',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            transition: 'border-color 0.2s',
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(121, 107, 255, 0.4)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#B6B3FF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Priority Logistics</span>
-            <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>Executive • Prime</h4>
-            <p style={{ fontSize: '13px', color: '#8B8FA8', lineHeight: 1.5, margin: 0 }}>
-              Luxury airport transport, diplomatic check-ins, and club suite access.
-            </p>
-          </div>
-
-          {/* Card 3 */}
-          <div style={{
-            background: '#121420',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            transition: 'border-color 0.2s',
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(121, 107, 255, 0.4)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#B6B3FF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>WCLF Level</span>
-            <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>VIP Finals • Plus</h4>
-            <p style={{ fontSize: '13px', color: '#8B8FA8', lineHeight: 1.5, margin: 0 }}>
-              Presidential box access, private helicopter transfers, and 24/7 dedicated support.
-            </p>
-          </div>
-
+          {[
+            { tag: 'General Clearance', title: 'Standard • Core', desc: 'Basic visa waiver, security screening, and general stadium accreditation.' },
+            { tag: 'Priority Logistics', title: 'Executive • Prime', desc: 'Luxury airport transport, diplomatic check-ins, and club suite access.' },
+            { tag: 'WCLF Level', title: 'VIP Finals • Plus', desc: 'Presidential box access, private helicopter transfers, and 24/7 dedicated support.' },
+          ].map((card) => (
+            <div key={card.title} style={{ background: '#121420', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'border-color 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(121, 107, 255, 0.4)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#B6B3FF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{card.tag}</span>
+              <h4 style={{ fontSize: '18px', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>{card.title}</h4>
+              <p style={{ fontSize: '13px', color: '#8B8FA8', lineHeight: 1.5, margin: 0 }}>{card.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
-
     </div>
   );
 }
@@ -456,13 +276,13 @@ export default function App() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [activeUser, setActiveUser] = useState<{ email: string; role: 'traveler' | 'admin'; country: string; fullName?: string } | null>(null);
   const [currentScreen, setCurrentScreen] = useState<'home' | 'signup' | 'apply' | 'auth' | 'journey' | 'admin' | 'dossier' | 'payment'>('home');
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   const getTravelerDefaultScreen = (app: Application | null | undefined, intended?: string | null): 'apply' | 'payment' | 'journey' | 'dossier' => {
     if (!app) return 'apply';
     const payStatus = app.paymentDetails?.status;
     if (payStatus !== 'APPROVED') {
       if (!payStatus) return 'payment';
-      // If proof is uploaded (PENDING_VERIFICATION or REJECTED), they can go to intended if valid
       if (intended && ['journey', 'dossier', 'payment'].includes(intended)) return intended as any;
       return 'journey';
     }
@@ -470,8 +290,54 @@ export default function App() {
     return 'journey';
   };
 
-  // Check for secure admin path on mount
   const [isAdminPathAccessed, setIsAdminPathAccessed] = useState(false);
+
+  // ── RESTORE SESSION ON LOAD ──────────────────────────────────────────
+  useEffect(() => {
+    const restoreSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const email = session.user.email || '';
+        const dbRole = await authService.getUserRole(email).catch(() => 'traveler' as const);
+        const saved = localStorage.getItem(`fifa_account_${email.toLowerCase()}`);
+        const accountData = saved ? JSON.parse(saved) : null;
+        setActiveUser({
+          email,
+          role: dbRole,
+          country: accountData?.country ? (LANGUAGES.find(l => l.code === accountData.country)?.name || '') : '',
+          fullName: accountData?.fullName,
+        });
+        setCurrentScreen(dbRole === 'admin' ? 'admin' : 'journey');
+      }
+      setSessionLoading(false);
+    };
+    restoreSession();
+
+    // Listen for auth state changes (handles email verification redirects)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        const email = session.user.email || '';
+        const dbRole = await authService.getUserRole(email).catch(() => 'traveler' as const);
+        const saved = localStorage.getItem(`fifa_account_${email.toLowerCase()}`);
+        const accountData = saved ? JSON.parse(saved) : null;
+        setActiveUser({
+          email,
+          role: dbRole,
+          country: accountData?.country ? (LANGUAGES.find(l => l.code === accountData.country)?.name || '') : '',
+          fullName: accountData?.fullName,
+        });
+        setCurrentScreen(dbRole === 'admin' ? 'admin' : 'journey');
+        setSessionLoading(false);
+      }
+      if (event === 'SIGNED_OUT') {
+        setActiveUser(null);
+        setCurrentScreen('home');
+        setSessionLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (window.location.pathname === '/adm_9x2b7f_secure') {
@@ -483,47 +349,35 @@ export default function App() {
 
   // In-memory routing and route protection
   useEffect(() => {
+    if (sessionLoading) return;
     const protectedScreens = ['apply', 'journey', 'admin', 'dossier', 'payment'];
-    
     if (protectedScreens.includes(currentScreen) && !activeUser) {
       localStorage.setItem('fifa_intended_screen', currentScreen);
       setCurrentScreen('auth');
       return;
     }
-
     if (activeUser) {
       if (activeUser.role === 'admin') {
-        if (currentScreen !== 'admin') {
-          setCurrentScreen('admin');
-        }
+        if (currentScreen !== 'admin') setCurrentScreen('admin');
       } else {
-        // Traveler route protection and checks
         const app = applications.find(a => a.personalInfo.email.toLowerCase() === activeUser.email.toLowerCase());
         if (!app) {
-          if (currentScreen !== 'apply') {
-            setCurrentScreen('apply');
-          }
+          if (currentScreen !== 'apply') setCurrentScreen('apply');
         } else {
           const payStatus = app.paymentDetails?.status;
           if (payStatus !== 'APPROVED') {
             if (!payStatus) {
-              if (currentScreen !== 'payment') {
-                setCurrentScreen('payment');
-              }
+              if (currentScreen !== 'payment') setCurrentScreen('payment');
             } else {
-              if (!['payment', 'journey', 'dossier'].includes(currentScreen)) {
-                setCurrentScreen('journey');
-              }
+              if (!['payment', 'journey', 'dossier'].includes(currentScreen)) setCurrentScreen('journey');
             }
           } else {
-            if (!['journey', 'dossier'].includes(currentScreen)) {
-              setCurrentScreen('journey');
-            }
+            if (!['journey', 'dossier'].includes(currentScreen)) setCurrentScreen('journey');
           }
         }
       }
     }
-  }, [currentScreen, activeUser, applications]);
+  }, [currentScreen, activeUser, applications, sessionLoading]);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -609,7 +463,6 @@ export default function App() {
     const existing = applications.find(a => a.id === appId);
     if (existing) await dbService.insertApplication({ ...existing, ...updates });
   };
-
   const handleSendDirectMessage = (userEmail: string, subject: string, message: string) => {
     const key = `fifa_admin_direct_messages`;
     const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -620,7 +473,6 @@ export default function App() {
     userInbox.unshift({ subject, message, from: 'admin', sentAt: new Date().toISOString(), read: false });
     localStorage.setItem(userKey, JSON.stringify(userInbox));
   };
-
   const handleNewApplicationSuccess = async (newApp: Application) => {
     setApplications(prev => [newApp, ...prev]);
     setActiveUser({ email: newApp.personalInfo.email, role: 'traveler', country: newApp.personalInfo.nationality, fullName: newApp.personalInfo.fullName });
@@ -628,12 +480,17 @@ export default function App() {
     setCurrentScreen('payment');
   };
 
+  // Show nothing while restoring session to prevent flash
+  if (sessionLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0C0D12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img src="/logo.png" alt="WCLF" style={{ height: '56px', width: 'auto', opacity: 0.6 }} />
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      minHeight: '100vh', background: '#13131A',
-      color: '#0C0D12', fontFamily: 'var(--font-sans)', overflowX: 'hidden',
-    }}>
-      {/* ── HEADER ── */}
+    <div style={{ minHeight: '100vh', background: '#13131A', color: '#0C0D12', fontFamily: 'var(--font-sans)', overflowX: 'hidden' }}>
       <FloatingHeader
         currentLanguage={currentLanguage}
         onLanguageChange={setCurrentLanguage}
@@ -642,23 +499,15 @@ export default function App() {
         onUserClick={() => setCurrentScreen(activeUser?.role === 'admin' ? 'admin' : 'journey')}
       />
 
-      {/* ── MAIN ── */}
       <main style={{ position: 'relative', zIndex: 1, paddingBottom: '64px', paddingTop: '84px', paddingLeft: '16px', paddingRight: '16px' }}>
         <div style={{
-          maxWidth: '1120px',
-          margin: '0 auto',
-          background: '#0C0D12',
-          borderRadius: '28px',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          boxShadow: '0 30px 70px rgba(0,0,0,0.3)',
-          overflow: 'hidden',
+          maxWidth: '1120px', margin: '0 auto', background: '#0C0D12',
+          borderRadius: '28px', border: '1px solid rgba(255, 255, 255, 0.05)',
+          boxShadow: '0 30px 70px rgba(0,0,0,0.3)', overflow: 'hidden',
           padding: currentScreen === 'home' ? '0' : '40px 16px',
         }}>
           {currentScreen === 'home' && (
-            <HomeLanding
-              onApply={() => setCurrentScreen('signup')}
-              onAccess={() => setCurrentScreen('auth')}
-            />
+            <HomeLanding onApply={() => setCurrentScreen('signup')} onAccess={() => setCurrentScreen('auth')} />
           )}
 
           {currentScreen === 'signup' && (
@@ -692,28 +541,23 @@ export default function App() {
                   country: accountData?.country ? (LANGUAGES.find(l => l.code === accountData.country)?.name || user.country) : user.country,
                 };
                 setActiveUser(fullUser);
-
                 if (user.role === 'admin') {
                   setCurrentScreen('admin');
                 } else {
                   const app = applications.find(a => a.personalInfo.email.toLowerCase() === user.email.toLowerCase());
                   const intended = localStorage.getItem('fifa_intended_screen');
                   localStorage.removeItem('fifa_intended_screen');
-                  
                   if (!app) {
                     setCurrentScreen('apply');
                   } else {
-                    const nextScreen = getTravelerDefaultScreen(app, intended);
-                    setCurrentScreen(nextScreen);
+                    setCurrentScreen(getTravelerDefaultScreen(app, intended));
                   }
                 }
               }} />
               <div style={{ textAlign: 'center', marginTop: '20px' }}>
                 <span style={{ fontSize: '12px', color: '#8B8FA8' }}>Don't have an account? </span>
-                <button
-                  onClick={() => setCurrentScreen('signup')}
-                  style={{ fontSize: '12px', color: '#796BFF', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}
-                >
+                <button onClick={() => setCurrentScreen('signup')}
+                  style={{ fontSize: '12px', color: '#796BFF', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }}>
                   Sign up
                 </button>
               </div>
@@ -728,22 +572,16 @@ export default function App() {
                   <h2 style={{ fontSize: 'clamp(18px,3vw,24px)', fontWeight: 700, color: '#fff' }}>{activeUser?.email}</h2>
                 </div>
                 {activeTravelerApp && (
-                  <button 
+                  <button
                     onClick={() => {
                       if (activeTravelerApp.paymentDetails?.status !== 'APPROVED') {
                         alert('Print dossier is locked until your deposit payment is approved.');
                       } else {
                         setCurrentScreen('dossier');
                       }
-                    }} 
-                    className="btn-secondary" 
-                    style={{ 
-                      padding: '9px 18px', 
-                      fontSize: '13px', 
-                      opacity: activeTravelerApp.paymentDetails?.status === 'APPROVED' ? 1 : 0.5,
-                      cursor: activeTravelerApp.paymentDetails?.status === 'APPROVED' ? 'pointer' : 'not-allowed'
                     }}
-                  >
+                    className="btn-secondary"
+                    style={{ padding: '9px 18px', fontSize: '13px', opacity: activeTravelerApp.paymentDetails?.status === 'APPROVED' ? 1 : 0.5, cursor: activeTravelerApp.paymentDetails?.status === 'APPROVED' ? 'pointer' : 'not-allowed' }}>
                     Print dossier
                   </button>
                 )}
@@ -751,18 +589,14 @@ export default function App() {
               {activeTravelerApp ? (
                 <TravelPortal
                   application={activeTravelerApp} lang={currentLanguage}
-                  onLogout={() => { setActiveUser(null); setCurrentScreen('home'); }}
+                  onLogout={() => { supabase.auth.signOut(); setActiveUser(null); setCurrentScreen('home'); }}
                   announcements={announcements} tickets={tickets}
                   onAddTicketMessage={handleUserTicketResponse}
                   onNewTicket={handleCreateSupportTicket}
                   onNavigateToPayment={() => setCurrentScreen('payment')}
                 />
               ) : (
-                <div style={{
-                  maxWidth: '440px', margin: '0 auto', padding: '40px',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '20px', textAlign: 'center',
-                }}>
+                <div style={{ maxWidth: '440px', margin: '0 auto', padding: '40px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', textAlign: 'center' }}>
                   <AlertTriangle size={22} style={{ color: '#8B8FA8', marginBottom: '16px' }} />
                   <h4 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', marginBottom: '10px' }}>No application found</h4>
                   <p style={{ fontSize: '14px', color: '#8B8FA8', lineHeight: 1.65, marginBottom: '24px' }}>
@@ -770,7 +604,7 @@ export default function App() {
                   </p>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button className="btn-primary" onClick={() => setCurrentScreen('apply')} style={{ padding: '11px 22px', fontSize: '14px' }}>Apply now</button>
-                    <button className="btn-secondary" onClick={() => { setActiveUser(null); setCurrentScreen('home'); }} style={{ padding: '11px 22px', fontSize: '14px' }}>Go back</button>
+                    <button className="btn-secondary" onClick={() => { supabase.auth.signOut(); setActiveUser(null); setCurrentScreen('home'); }} style={{ padding: '11px 22px', fontSize: '14px' }}>Go back</button>
                   </div>
                 </div>
               )}
@@ -801,7 +635,7 @@ export default function App() {
                 onAddAnnouncement={handleAddAnnouncement} tickets={tickets}
                 onAdminResponse={handleAdminTicketResponse}
                 onSendDirectMessage={handleSendDirectMessage}
-                onLogout={() => { setActiveUser(null); setCurrentScreen('home'); }}
+                onLogout={() => { supabase.auth.signOut(); setActiveUser(null); setCurrentScreen('home'); }}
               />
             </div>
           )}
@@ -818,41 +652,25 @@ export default function App() {
         </div>
       </main>
 
-      {/* ── FOOTER ── */}
-      <footer style={{
-        background: '#FFFFFF',
-        borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-        padding: '32px 24px',
-      }}>
-        <div style={{
-          maxWidth: '1120px', margin: '0 auto',
-          display: 'flex', flexDirection: 'column', gap: '20px',
-        }}>
+      <footer style={{ background: '#FFFFFF', borderTop: '1px solid rgba(0, 0, 0, 0.06)', padding: '32px 24px' }}>
+        <div style={{ maxWidth: '1120px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <img src="/logo.png" alt="WCLF" style={{ height: '60px', width: 'auto' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-              {/* Email */}
               <a href="mailto:support@worldcuplegacyfunds.online" style={{ display: 'flex', alignItems: 'center', gap: '7px', textDecoration: 'none', color: '#5C617F', fontSize: '13px', fontWeight: 600, transition: 'color 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#796BFF'} onMouseLeave={e => e.currentTarget.style.color = '#5C617F'}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                 support@worldcuplegacyfunds.online
               </a>
-              {/* Telegram */}
               <a href="https://t.me/worldcuplegacyfunds" target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '7px', textDecoration: 'none', color: '#5C617F', fontSize: '13px', fontWeight: 600, transition: 'color 0.2s' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#796BFF'} onMouseLeave={e => e.currentTarget.style.color = '#5C617F'}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.32 14.617l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.828.942z"/>
-                </svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L8.32 14.617l-2.96-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.828.942z"/></svg>
                 @worldcuplegacyfunds
               </a>
             </div>
           </div>
           <div style={{ height: '1px', background: 'rgba(0,0,0,0.06)' }} />
-          <p style={{ fontSize: '11px', color: '#8B8FA8', margin: 0, textAlign: 'center' }}>
-            © 2026 WCLF. All rights reserved.
-          </p>
+          <p style={{ fontSize: '11px', color: '#8B8FA8', margin: 0, textAlign: 'center' }}>© 2026 WCLF. All rights reserved.</p>
         </div>
       </footer>
     </div>

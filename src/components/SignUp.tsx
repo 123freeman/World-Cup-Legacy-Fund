@@ -55,7 +55,7 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
         email: email.toLowerCase(),
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: 'https://www.worldcuplegacyfund.online/',
           data: {
             full_name: fullName,
             country: countryName,
@@ -81,7 +81,7 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
       await supabase.auth.resend({
         type: 'signup',
         email: pendingUser.email,
-        options: { emailRedirectTo: `${window.location.origin}/` }
+        options: { emailRedirectTo: 'https://www.worldcuplegacyfund.online/' }
       });
     } catch (err: any) {
       setError('Could not resend. Please try again shortly.');
