@@ -106,11 +106,11 @@ export default function DossierPDF({ application, lang }: DossierPDFProps) {
               </div>
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Passport Identification</span>
-                <span className="text-xs font-bold text-white uppercase print:text-black font-mono">{application.passportInfo.passportNumber}</span>
+                <span className="text-xs font-bold text-white uppercase print:text-black font-mono">{application.passportInfo?.passportNumber || ''}</span>
               </div>
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Nationality Gate</span>
-                <span className="text-xs font-bold text-white uppercase print:text-black font-sans">{application.passportInfo.issueCountry}</span>
+                <span className="text-xs font-bold text-white uppercase print:text-black font-sans">{application.passportInfo?.issueCountry || ''}</span>
               </div>
             </div>
           </div>
@@ -120,34 +120,34 @@ export default function DossierPDF({ application, lang }: DossierPDFProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Accreditee Full Name</span>
-                <span className="text-xs font-bold text-white uppercase print:text-black font-sans">{application.personalInfo.fullName}</span>
+                <span className="text-xs font-bold text-white uppercase print:text-black font-sans">{application.personalInfo?.fullName || ''}</span>
               </div>
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Registered Email</span>
-                <span className="text-xs font-bold text-white print:text-black font-mono">{application.personalInfo.email}</span>
+                <span className="text-xs font-bold text-white print:text-black font-mono">{application.personalInfo?.email || ''}</span>
               </div>
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Secure Residence Station</span>
                 <span className="text-xs font-bold text-white uppercase print:text-black font-sans">
-                  {application.addressInfo.street}, {application.addressInfo.city}
+                  {application.addressInfo?.street || ''}, {application.addressInfo?.city || ''}
                 </span>
               </div>
               <div>
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Departure Flight Port</span>
                 <span className="text-xs font-bold text-white uppercase print:text-black font-sans">
-                  {application.travelOrigin.departureCity} ({application.travelOrigin.preferredAirlineClass})
+                  {application.travelOrigin?.departureCity || ''} ({application.travelOrigin?.preferredAirlineClass || ''})
                 </span>
               </div>
               <div className="col-span-2">
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Confirmed Fast-Pass Match Entries ({application.matchPreferences.length})</span>
                 <span className="text-xs font-bold text-white/80 uppercase print:text-black font-mono block">
-                  {application.matchPreferences.map(m => `${m.homeTeam} vs ${m.awayTeam} (${m.stage})`).join(' • ')}
+                  {(application.matchPreferences || []).map(m => `${m.homeTeam} vs ${m.awayTeam} (${m.stage})`).join(' • ')}
                 </span>
               </div>
               <div className="col-span-2">
                 <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Premium Resort Allocation</span>
                 <span className="text-xs font-bold text-white uppercase print:text-black font-sans">
-                  {application.accommodationPreferences.tier} ({application.accommodationPreferences.requirements})
+                  {application.accommodationPreferences?.tier || ''} ({application.accommodationPreferences?.requirements || ''})
                 </span>
               </div>
             </div>
