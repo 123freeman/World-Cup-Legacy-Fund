@@ -88,6 +88,35 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
     }
   };
 
+  const handleCheckVerification = async () => {
+    if (!pendingUser) return;
+    setError('');
+    setLoading(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: pendingUser.email,
+        password: pendingUser.password,
+      });
+
+      setLoading(false);
+
+      if (signInError || !data.user) {
+        setError('Your email has not been verified yet. Please check your inbox and click the confirmation link first.');
+        return;
+      }
+
+      if (!data.user.email_confirmed_at) {
+        setError('Your email has not been verified yet. Please check your inbox and click the confirmation link first.');
+        return;
+      }
+
+      onSignUpSuccess(pendingUser);
+    } catch (err: any) {
+      setLoading(false);
+      setError('Could not verify. Please try again.');
+    }
+  };
+
   // ── VERIFICATION SENT SCREEN ─────────────────────────────────────────
   if (verificationSent && pendingUser) {
     return (
@@ -133,11 +162,15 @@ export default function SignUp({ onSignUpSuccess, onSwitchToLogin, lang }: SignU
             {/* Already verified */}
             <button
               type="button"
-              onClick={() => onSignUpSuccess(pendingUser)}
-              className="w-full flex items-center justify-center gap-2 py-3.5 bg-transparent border border-white/10 hover:border-white/20 text-white font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider cursor-pointer active:scale-95"
+              onClick={handleCheckVerification}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3.5 bg-transparent border border-white/10 hover:border-white/20 text-white font-sans font-bold text-xs uppercase rounded-full duration-200 tracking-wider cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              <ArrowRight className="w-4 h-4" />
-              I've verified, continue
+              {loading ? (
+                <span className="animate-pulse">Checking verification...</span>
+              ) : (
+                <><ArrowRight className="w-4 h-4" /> I've verified, continue</>
+              )}
             </button>
 
             <div className="mt-6 pt-4 border-t border-white/[0.06]">
