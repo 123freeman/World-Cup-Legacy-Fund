@@ -113,7 +113,7 @@ const SEED_ANNOUNCEMENTS: Announcement[] = [
 const SEED_TICKETS: SupportTicket[] = [
   {
     id: 'tkt_seed_1', applicationId: 'app_seed_1', applicationNumber: 'ACC-2026-EU-429012',
-    userId: 'user_seed_frank', userName: 'Frank Saint-Amand',
+    userId: 'user_seed_frank', userName: 'Frank Saint-Amand' || '',
     subject: 'Helicopter shuttle synchronization in NY NJ', status: 'OPEN',
     messages: [
       { id: 'm1', sender: 'user', timestamp: new Date(Date.now() - 3600000).toISOString(), text: 'Hello, can I request direct helicopter transfer from JFK premium FBO to the stadium zone on final matchday?' },
@@ -360,7 +360,7 @@ export default function App() {
       if (activeUser.role === 'admin') {
         if (currentScreen !== 'admin') setCurrentScreen('admin');
       } else {
-        const app = applications.find(a => a.personalInfo.email.toLowerCase() === activeUser.email.toLowerCase());
+        const app = applications.find(a => a.personalInfo?.email?.toLowerCase() === activeUser.email.toLowerCase());
         if (!app) {
           if (currentScreen !== 'apply') setCurrentScreen('apply');
         } else {
@@ -414,7 +414,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('fifa_wclf_tickets', JSON.stringify(tickets)); }, [tickets]);
 
   const activeTravelerApp = activeUser?.role === 'traveler'
-    ? applications.find(a => a.personalInfo.email.toLowerCase() === activeUser.email.toLowerCase())
+    ? applications.find(a => a.personalInfo?.email?.toLowerCase() === activeUser.email.toLowerCase())
     : null;
 
   const handleUpdateAppStatus = async (appId: string, status: Application['status']) => {
@@ -451,8 +451,8 @@ export default function App() {
     const newTkt: SupportTicket = {
       id: `tkt_${Date.now()}`, applicationId: activeTravelerApp.id,
       applicationNumber: activeTravelerApp.applicationNumber,
-      userId: activeTravelerApp.personalInfo.email, userName: activeTravelerApp.personalInfo.fullName,
-      subject, status: 'OPEN',
+      userId: activeTravelerApp.personalInfo?.email || '', userName: activeTravelerApp.personalInfo?.fullName || '',
+      subject: subject || '', status: 'OPEN',
       messages: [{ id: `m_${Date.now()}`, sender: 'user', timestamp: new Date().toISOString(), text: firstText }]
     };
     setTickets(prev => [newTkt, ...prev]);
@@ -544,7 +544,7 @@ export default function App() {
                 if (user.role === 'admin') {
                   setCurrentScreen('admin');
                 } else {
-                  const app = applications.find(a => a.personalInfo.email.toLowerCase() === user.email.toLowerCase());
+                  const app = applications.find(a => a.personalInfo?.email?.toLowerCase() === user.email.toLowerCase());
                   const intended = localStorage.getItem('fifa_intended_screen');
                   localStorage.removeItem('fifa_intended_screen');
                   if (!app) {
