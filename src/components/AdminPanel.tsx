@@ -105,7 +105,7 @@ export default function AdminPanel({
   const totalApps = applications.length;
   const approvedApps = applications.filter(a => a.status === 'CLEARANCE_GRANTED').length;
   const pendingApps = applications.filter(a => a.status === 'PENDING_VERIFICATION' || a.status === 'PAYMENT_PENDING_CONFIRMATION').length;
-  const totalValueUSD = applications.reduce((acc, curr) => acc + curr.costBreakdown.totalUSD, 0);
+  const totalValueUSD = applications.reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
   const totalValueSettledUSD = applications
     .filter(a => a.status === 'CLEARANCE_GRANTED')
     .reduce((acc, curr) => acc + curr.costBreakdown.totalUSD, 0);
@@ -587,8 +587,8 @@ export default function AdminPanel({
                   {paymentFilteredApps.map((app) => {
                     const payDetails = app.paymentDetails;
                     const method = payDetails?.method || 'N/A';
-                    const depositAmt = payDetails?.depositAmountUSD || (app.costBreakdown.totalUSD * 0.1);
-                    const totalAmt = app.costBreakdown.totalUSD;
+                    const depositAmt = payDetails?.depositAmountUSD || ((app.costBreakdown?.totalUSD || 0) * 0.1);
+                    const totalAmt = app.costBreakdown?.totalUSD || 0;
                     const cryptoAmt = payDetails?.amountCrypto;
                     const submittedAt = payDetails?.uploadedAt ? new Date(payDetails.uploadedAt).toLocaleDateString() : 'N/A';
                     const status = payDetails?.status || 'PENDING_VERIFICATION';
@@ -750,11 +750,11 @@ export default function AdminPanel({
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Deposit Value (10%):</span>
-                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || (selectedPaymentApp.costBreakdown.totalUSD * 0.1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || ((selectedPaymentApp.costBreakdown?.totalUSD || 0) * 0.1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Package Total Value:</span>
-                          <span className="text-white font-bold">${selectedPaymentApp.costBreakdown.totalUSD.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="text-white font-bold">${(selectedPaymentApp.costBreakdown?.totalUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Submission Date:</span>
