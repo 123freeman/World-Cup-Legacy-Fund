@@ -69,7 +69,7 @@ export default function TravelPortal({
 
   useEffect(() => {
     const fetchInbox = () => {
-      const userKey = `fifa_inbox_${application.personalInfo.email.toLowerCase()}`;
+      const userKey = `fifa_inbox_${(application.personalInfo?.email || '').toLowerCase()}`;
       try {
         const items = JSON.parse(localStorage.getItem(userKey) || '[]');
         setInboxItems(items);
@@ -84,14 +84,14 @@ export default function TravelPortal({
   }, [application.personalInfo.email]);
 
   const handleMarkAsRead = (id: string) => {
-    const userKey = `fifa_inbox_${application.personalInfo.email.toLowerCase()}`;
+    const userKey = `fifa_inbox_${(application.personalInfo?.email || '').toLowerCase()}`;
     const updated = inboxItems.map(item => item.id === id ? { ...item, read: true } : item);
     localStorage.setItem(userKey, JSON.stringify(updated));
     setInboxItems(updated);
   };
 
   const handleClearNotifications = () => {
-    const userKey = `fifa_inbox_${application.personalInfo.email.toLowerCase()}`;
+    const userKey = `fifa_inbox_${(application.personalInfo?.email || '').toLowerCase()}`;
     const cleared = inboxItems.map(item => ({ ...item, read: true }));
     localStorage.setItem(userKey, JSON.stringify(cleared));
     setInboxItems(cleared);
@@ -172,7 +172,7 @@ export default function TravelPortal({
 
           <div className="mt-4">
             <h4 className="text-sm font-bold text-white uppercase font-sans tracking-tight leading-none truncate">
-              {application.personalInfo.fullName}
+              {application.personalInfo?.fullName || ''}
             </h4>
             <span className="text-[10px] font-mono text-[#5B5F78] uppercase tracking-widest mt-1 block">
               STATUS CLASSIFICATION

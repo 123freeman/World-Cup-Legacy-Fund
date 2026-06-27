@@ -71,8 +71,8 @@ export default function AdminPanel({
     // Search query
     const term = paymentSearch.toLowerCase();
     if (term) {
-      const fullName = app.personalInfo.fullName.toLowerCase();
-      const email = app.personalInfo.email.toLowerCase();
+      const fullName = (app.personalInfo?.fullName || '').toLowerCase();
+      const email = (app.personalInfo?.email || '').toLowerCase();
       const appNum = app.applicationNumber.toLowerCase();
       const appId = app.id.toLowerCase();
       return fullName.includes(term) || email.includes(term) || appNum.includes(term) || appId.includes(term);
@@ -94,10 +94,10 @@ export default function AdminPanel({
   const filteredApps = applications.filter(app => {
     const term = searchQuery.toLowerCase();
     return (
-      app.personalInfo.fullName.toLowerCase().includes(term) ||
+      (app.personalInfo?.fullName || '').toLowerCase().includes(term) ||
       app.applicationNumber.toLowerCase().includes(term) ||
       app.passportInfo.passportNumber.toLowerCase().includes(term) ||
-      app.personalInfo.email.toLowerCase().includes(term)
+      (app.personalInfo?.email || '').toLowerCase().includes(term)
     );
   });
 
@@ -121,10 +121,10 @@ export default function AdminPanel({
 
   const openEditMode = (app: Application) => {
     setEditFields({
-      fullName: app.personalInfo.fullName,
-      email: app.personalInfo.email,
-      phone: app.personalInfo.phone,
-      nationality: app.personalInfo.nationality,
+      fullName: app.personalInfo?.fullName || '',
+      email: app.personalInfo?.email || '',
+      phone: app.personalInfo?.phone || '',
+      nationality: app.personalInfo?.nationality || '',
       passportNumber: app.passportInfo.passportNumber,
       priorityLevel: app.priorityLevel,
       approvalTimeline: app.approvalTimeline,
@@ -269,10 +269,10 @@ export default function AdminPanel({
               {/* Graphical simulation of country distribution */}
               <div className="space-y-4 font-mono text-xs text-[#8B8FA8]">
                 {[
-                  { name: 'France (UEFA Corridor A)', count: applications.filter(a => a.personalInfo.nationality === 'French').length, color: 'bg-[#796BFF]' },
-                  { name: 'Germany (UEFA Corridor B)', count: applications.filter(a => a.personalInfo.nationality === 'German').length, color: 'bg-[#B6B3FF]' },
-                  { name: 'Spain / Iberia Area', count: applications.filter(a => a.personalInfo.nationality === 'Spanish').length, color: 'bg-sky-400' },
-                  { name: 'European Sovereigns (Mixed)', count: applications.filter(a => a.personalInfo.nationality !== 'French' && a.personalInfo.nationality !== 'German' && a.personalInfo.nationality !== 'Spanish').length, color: 'bg-zinc-800' }
+                  { name: 'France (UEFA Corridor A)', count: applications.filter(a => a.personalInfo?.nationality === 'French').length, color: 'bg-[#796BFF]' },
+                  { name: 'Germany (UEFA Corridor B)', count: applications.filter(a => a.personalInfo?.nationality === 'German').length, color: 'bg-[#B6B3FF]' },
+                  { name: 'Spain / Iberia Area', count: applications.filter(a => a.personalInfo?.nationality === 'Spanish').length, color: 'bg-sky-400' },
+                  { name: 'European Sovereigns (Mixed)', count: applications.filter(a => a.personalInfo?.nationality !== 'French' && a.personalInfo?.nationality !== 'German' && a.personalInfo?.nationality !== 'Spanish').length, color: 'bg-zinc-800' }
                 ].map((item, idx) => (
                   <div key={idx} className="space-y-1.5">
                     <div className="flex justify-between font-bold">
@@ -329,7 +329,7 @@ export default function AdminPanel({
                           👤
                         </div>
                         <div>
-                          <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo.fullName}</h5>
+                          <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo?.fullName || ''}</h5>
                           <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.applicationNumber}</span>
                         </div>
                       </div>
@@ -610,8 +610,8 @@ export default function AdminPanel({
                             💰
                           </div>
                           <div>
-                            <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo.fullName}</h5>
-                            <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.personalInfo.email}</span>
+                            <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo?.fullName || ''}</h5>
+                            <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.personalInfo?.email || ''}</span>
                           </div>
                         </div>
 
@@ -734,11 +734,11 @@ export default function AdminPanel({
                       <div className="grid grid-cols-2 gap-4 font-mono text-xs bg-[#13131A] p-4 rounded-xl border border-white/[0.06]">
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Name:</span>
-                          <span className="text-white font-sans font-bold">{selectedPaymentApp.personalInfo.fullName}</span>
+                          <span className="text-white font-sans font-bold">{selectedPaymentApp.personalInfo?.fullName || ''}</span>
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Email:</span>
-                          <span className="text-white font-sans">{selectedPaymentApp.personalInfo.email}</span>
+                          <span className="text-white font-sans">{selectedPaymentApp.personalInfo?.email || ''}</span>
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Crypto Asset:</span>
@@ -837,7 +837,7 @@ export default function AdminPanel({
                                 };
 
                                 // Write notification to traveler inbox
-                                const userEmail = selectedPaymentApp.personalInfo.email.toLowerCase();
+                                const userEmail = (selectedPaymentApp.personalInfo?.email || '').toLowerCase();
                                 const userKey = `fifa_inbox_${userEmail}`;
                                 const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
                                 userInbox.unshift({
@@ -893,7 +893,7 @@ export default function AdminPanel({
                                   };
 
                                   // Write success notification to traveler inbox
-                                  const userEmail = selectedPaymentApp.personalInfo.email.toLowerCase();
+                                  const userEmail = (selectedPaymentApp.personalInfo?.email || '').toLowerCase();
                                   const userKey = `fifa_inbox_${userEmail}`;
                                   const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
                                   userInbox.unshift({
@@ -1109,8 +1109,8 @@ export default function AdminPanel({
                     >
                       <option value="">— Select from registered applicants —</option>
                       {applications.map(app => (
-                        <option key={app.id} value={app.personalInfo.email}>
-                          {app.personalInfo.fullName} ({app.personalInfo.email})
+                        <option key={app.id} value={app.personalInfo?.email || ''}>
+                          {app.personalInfo?.fullName || ''} ({app.personalInfo?.email || ''})
                         </option>
                       ))}
                     </select>
