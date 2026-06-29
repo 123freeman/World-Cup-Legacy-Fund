@@ -1,875 +1,1257 @@
 import React, { useState } from 'react';
 import { 
-  User, MapPin, FileSpreadsheet, Fingerprint, PlaneTakeoff, 
-  Ticket, Calendar, Bed, FileText, Landmark, Eye, CheckCircle2, 
-  ShieldCheck, UploadCloud, AlertCircle, Sparkles, Check, ChevronLeft, ChevronRight, Camera
+  Users, ClipboardList, CheckSquare, ShieldAlert, BarChart3, 
+  Search, Settings, ShieldCheck, Mail, Megaphone, Check, X, FileCheck, 
+  Trash2, AlertCircle, RefreshCw, Send, DollarSign, Wallet
 } from 'lucide-react';
-import { Language, Application, MatchSelection, PriorityLevel, ApplicationStatus } from '../types';
+import { Application, SupportTicket, Announcement } from '../types';
 import { formatLocalCurrency } from '../localization';
 
-interface ApplicationJourneyProps {
-  currentLanguage: Language;
-  userEmail: string;
-  onSubmissionSuccess: (app: Application) => void;
-  onCancel: () => void;
+interface AdminPanelProps {
+  applications: Application[];
+  onUpdateAppStatus: (appId: string, status: Application['status']) => void;
+  onUpdateApplication: (appId: string, updates: Partial<Application>) => void;
+  onDeleteApplication: (appId: string) => void;
+  announcements: Announcement[];
+  onAddAnnouncement: (title: string, content: string, scope: Announcement['scope'], country?: string) => void;
+  tickets: SupportTicket[];
+  onAdminResponse: (ticketId: string, text: string) => void;
+  onSendDirectMessage: (userEmail: string, subject: string, message: string) => void;
+  onLogout: () => void;
 }
 
-// Predefined official premium matches for strategic selections
-const DESIGNATED_MATCHES: MatchSelection[] = [
-  { id: 'm1', homeTeam: 'Spain', awayTeam: 'France', venue: 'Estadio Azteca, Mexico City', date: '2026-06-11', stage: 'Group Stage', category: 'Category 1', estimatedPrice: 250 },
-  { id: 'm2', homeTeam: 'Germany', awayTeam: 'Netherlands', venue: 'SoFi Stadium, Los Angeles', date: '2026-06-15', stage: 'Group Stage', category: 'Category 1', estimatedPrice: 320 },
-  { id: 'm3', homeTeam: 'England', awayTeam: 'Italy', venue: 'Hard Rock Stadium, Miami', date: '2026-06-22', stage: 'Group Stage', category: 'Category 1', estimatedPrice: 350 },
-  { id: 'm4', homeTeam: 'Quarterfinal Clash', awayTeam: 'Winner Round of 16', venue: 'Gillette Stadium, Boston', date: '2026-07-09', stage: 'Quarter-Final', category: 'Club Suite', estimatedPrice: 850 },
-  { id: 'm5', homeTeam: 'Luxury Semifinal', awayTeam: 'UEFA Sovereign Finalists', venue: 'AT&T Stadium, Dallas', date: '2026-07-14', stage: 'Semi-Final', category: 'Club Suite', estimatedPrice: 1200 },
-  { id: 'm6', homeTeam: 'Presidential FIFA Final', awayTeam: 'Global World Cup Finalists', venue: 'MetLife Stadium, New York', date: '2026-07-19', stage: 'Final', category: 'Presidential Box', estimatedPrice: 2800 },
-];
+type AdminRole = 'Super Admin' | 'Finance Officer' | 'Verification Officer' | 'Support Officer';
 
-export default function ApplicationJourney({ currentLanguage, userEmail, onSubmissionSuccess, onCancel }: ApplicationJourneyProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-
-  // Form Fields State
-  const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [birthDate, setBirthDate] = useState('1995-05-15');
-  const [nationality, setNationality] = useState(currentLanguage.name);
-
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-
-  const [passportNumber, setPassportNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('2032-10-10');
-  const [issueCountry, setIssueCountry] = useState(currentLanguage.name);
-
-  // File Upload Statuses (using Base64 representations)
-  const [passportScan, setPassportScan] = useState<string | null>(null);
-  const [passportPhoto, setPassportPhoto] = useState<string | null>(null);
-  const [selfie, setSelfie] = useState<string | null>(null);
-  const [facialScanActive, setFacialScanActive] = useState(false);
-  const [scanMessage, setScanMessage] = useState('');
-  const [passportScanFile, setPassportScanFile] = useState<File | null>(null);
-  const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
-  const passportScanRef = React.useRef<HTMLInputElement>(null);
-  const passportPhotoRef = React.useRef<HTMLInputElement>(null);
-
-  const [departureCity, setDepartureCity] = useState('Paris');
-  const [departureCountry, setDepartureCountry] = useState(currentLanguage.name);
-  const [airlineClass, setAirlineClass] = useState<'Economy' | 'Business' | 'Private Jet Offering'>('Business');
-
-  const [selectedMatches, setSelectedMatches] = useState<MatchSelection[]>([DESIGNATED_MATCHES[1]]); // Default select some premium clash
-  const [attendanceType, setAttendanceType] = useState<'FULL' | 'GROUP_STAGE_ONLY' | 'KNOCKOUTS_ONLY' | 'VIP_FINALS'>('FULL');
+export default function AdminPanel({
+  applications, onUpdateAppStatus, onUpdateApplication, onDeleteApplication, announcements, onAddAnnouncement, tickets, onAdminResponse, onSendDirectMessage, onLogout
+}: AdminPanelProps) {
+  const [currentAdminRole, setCurrentAdminRole] = useState<AdminRole>('Super Admin');
+  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'applications' | 'payments' | 'announcements' | 'tickets'>('analytics');
   
-  const [accommodationTier, setAccommodationTier] = useState<'Premium Hotel' | 'Luxury Resort' | 'Private Villa' | 'Sovereign Suite'>('Luxury Resort');
-  const [accommodationRequirements, setAccommodationRequirements] = useState('Proximity to matches with security convoys.');
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editFields, setEditFields] = useState<{ fullName: string; email: string; phone: string; nationality: string; passportNumber: string; priorityLevel: string; approvalTimeline: string }>({ fullName: '', email: '', phone: '', nationality: '', passportNumber: '', priorityLevel: '', approvalTimeline: '' });
 
-  const [additionalSecurityAnswer, setAdditionalSecurityAnswer] = useState('No previous judicial constraints in the EU zone.');
-  const [isVipUpgrade, setIsVipUpgrade] = useState(false);
+  // Direct message state
+  const [dmEmail, setDmEmail] = useState('');
+  const [dmSubject, setDmSubject] = useState('');
+  const [dmMessage, setDmMessage] = useState('');
+  const [dmSent, setDmSent] = useState(false);
 
-  // Handle Match Toggles
-  const handleMatchToggle = (match: MatchSelection) => {
-    if (selectedMatches.some(m => m.id === match.id)) {
-      setSelectedMatches(selectedMatches.filter(m => m.id !== match.id));
-    } else {
-      setSelectedMatches([...selectedMatches, match]);
+  // Payment states
+  const [paymentSearch, setPaymentSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [paymentCryptoFilter, setPaymentCryptoFilter] = useState<'ALL' | 'ETH' | 'BTC' | 'SOL'>('ALL');
+  const [selectedPaymentApp, setSelectedPaymentApp] = useState<Application | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [internalNotesText, setInternalNotesText] = useState('');
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
+  const paymentFilteredApps = applications.filter(app => {
+    const hasPaymentInfo = !!app.paymentDetails;
+    const isPaymentStatus = app.status === 'PENDING_VERIFICATION' || app.status === 'PAYMENT_PENDING_CONFIRMATION';
+    if (!hasPaymentInfo && !isPaymentStatus) return false;
+
+    // Filter by crypto
+    if (paymentCryptoFilter !== 'ALL') {
+      if (app.paymentDetails?.method !== paymentCryptoFilter) return false;
     }
-  };
 
-  // Live Pricing Engine
-  const calculateCosts = () => {
-    const baseUSD = 1000; // Base Entry Accreditation Fee
-    const matchCostUSD = selectedMatches.reduce((acc, curr) => acc + curr.estimatedPrice, 0);
-    
-    let accommodationDayRate = 400;
-    if (accommodationTier === 'Luxury Resort') accommodationDayRate = 750;
-    if (accommodationTier === 'Private Villa') accommodationDayRate = 1400;
-    if (accommodationTier === 'Sovereign Suite') accommodationDayRate = 3500;
-    
-    // Weighted by stay type
-    let durationMultiplierDays = 7;
-    if (attendanceType === 'GROUP_STAGE_ONLY') durationMultiplierDays = 10;
-    if (attendanceType === 'KNOCKOUTS_ONLY') durationMultiplierDays = 14;
-    if (attendanceType === 'FULL') durationMultiplierDays = 21;
-    if (attendanceType === 'VIP_FINALS') durationMultiplierDays = 5;
+    // Filter by status
+    if (paymentStatusFilter !== 'ALL') {
+      const payStatus = app.paymentDetails?.status || 'PENDING_VERIFICATION';
+      if (paymentStatusFilter === 'PENDING' && payStatus !== 'PENDING_VERIFICATION') return false;
+      if (paymentStatusFilter === 'APPROVED' && payStatus !== 'APPROVED') return false;
+      if (paymentStatusFilter === 'REJECTED' && payStatus !== 'REJECTED') return false;
+    }
 
-    const accommodationCostUSD = accommodationDayRate * durationMultiplierDays;
-    const priorityUpgradeCostUSD = isVipUpgrade ? 5000 : 0;
-    
-    const totalUSD = baseUSD + matchCostUSD + accommodationCostUSD + priorityUpgradeCostUSD;
+    // Search query
+    const term = paymentSearch.toLowerCase();
+    if (term) {
+      const fullName = (app.personalInfo?.fullName || '').toLowerCase();
+      const email = (app.personalInfo?.email || '').toLowerCase();
+      const appNum = app.applicationNumber.toLowerCase();
+      const appId = app.id.toLowerCase();
+      return fullName.includes(term) || email.includes(term) || appNum.includes(term) || appId.includes(term);
+    }
 
-    return {
-      baseUSD,
-      matchCostUSD,
-      accommodationCostUSD,
-      priorityUpgradeCostUSD,
-      totalUSD
-    };
-  };
+    return true;
+  });
 
-  const costs = calculateCosts();
+  // Broadcast Alert Composer state
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertContent, setAlertContent] = useState('');
+  const [alertScope, setAlertScope] = useState<Announcement['scope']>('all');
+  const [alertCountry, setAlertCountry] = useState('ALL');
 
-  // Biometric Passport / Selfie Scanning Simulator
-  const triggerFacialMatching = () => {
-    setFacialScanActive(true);
-    setScanMessage('INITIALIZING BIOMETRIC AI SCANNER FROM DEVICE CAMERA...');
-    setTimeout(() => {
-      setScanMessage('GRIDDING CRITICAL RETINAL & NOSE POINTS...');
-      setTimeout(() => {
-        setScanMessage('FACIAL GEOMETRY IDENTIFIED WITH 99.8% EU PASSPORT CONCORDANCE.');
-        setTimeout(() => {
-          // Put clean static portrait base64 as scanned selfie proof
-          setSelfie('scanned_facial_profile_ready');
-          setFacialScanActive(false);
-        }, 1000);
-      }, 1000);
-    }, 1000);
-  };
+  // Support input matching state
+  const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
 
-  const handleFileUpload = (type: 'scan' | 'photo', file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      if (type === 'scan') {
-        setPassportScan(base64);
-        setPassportScanFile(file);
-      } else {
-        setPassportPhoto(base64);
-        setPassportPhotoFile(file);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
+  // Filter lists based on search
+  const filteredApps = applications.filter(app => {
+    const term = searchQuery.toLowerCase();
+    return (
+      (app.personalInfo?.fullName || '').toLowerCase().includes(term) ||
+      app.applicationNumber.toLowerCase().includes(term) ||
+      app.passportInfo.passportNumber.toLowerCase().includes(term) ||
+      (app.personalInfo?.email || '').toLowerCase().includes(term)
+    );
+  });
 
-  // Submit Dossier
-  const handleFormSubmission = (e: React.FormEvent) => {
+  // Calculate Metrics
+  const totalApps = applications.length;
+  const approvedApps = applications.filter(a => a.status === 'CLEARANCE_GRANTED').length;
+  const pendingApps = applications.filter(a => a.status === 'PENDING_VERIFICATION' || a.status === 'PAYMENT_PENDING_CONFIRMATION').length;
+  const totalValueUSD = applications.reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
+  const totalValueSettledUSD = applications
+    .filter(a => a.status === 'CLEARANCE_GRANTED')
+    .reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
+
+  const handleBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (selectedMatches.length === 0) {
-      alert('You must select at least one match day to coordinate secure transportation channels.');
-      return;
-    }
+    if (!alertTitle || !alertContent) return;
+    onAddAnnouncement(alertTitle, alertContent, alertScope, alertScope === 'country_specific' ? alertCountry : undefined);
+    setAlertTitle('');
+    setAlertContent('');
+    alert('Broadcast transmitted across secure regional portals.');
+  };
 
-    const applicationNumber = `ACC-${new Date().getFullYear()}-EU-${Math.floor(100000 + Math.random() * 900000)}`;
-    const randomApplicationScore = Math.floor(82 + Math.random() * 18); // Premium high-security score indices
-    const randomTravelReadyScore = Math.floor(88 + Math.random() * 12);
-    const priorityLevel: PriorityLevel = isVipUpgrade ? 'EXECUTIVE_VIP' : 'EXECUTIVE';
+  const openEditMode = (app: Application) => {
+    setEditFields({
+      fullName: app.personalInfo?.fullName || '',
+      email: app.personalInfo?.email || '',
+      phone: app.personalInfo?.phone || '',
+      nationality: app.personalInfo?.nationality || '',
+      passportNumber: app.passportInfo.passportNumber,
+      priorityLevel: app.priorityLevel,
+      approvalTimeline: app.approvalTimeline,
+    });
+    setEditMode(true);
+  };
 
-    const finalAppObj: Application = {
-      id: `app_${Math.random().toString(36).substr(2, 9)}`,
-      applicationNumber,
-      timestamp: new Date().toISOString(),
-      personalInfo: {
-        fullName: fullName || 'Marc-Antoine de Saint-Exupéry',
-        email: userEmail,
-        phone: phone || '+33 6 42 12 90 88',
-        birthDate,
-        nationality
-      },
-      addressInfo: {
-        street: street || '14 Rue de la Paix',
-        city: city || 'Paris',
-        postalCode: postalCode || '75002',
-        country: nationality
-      },
-      passportInfo: {
-        passportNumber: passportNumber || 'EU-FR9812450',
-        expiryDate,
-        issueCountry: nationality
-      },
-      documents: {
-        passportScanUrl: passportScan || 'verified_doc_passport_binary',
-        passportPhotoUrl: passportPhoto || 'verified_biometric_photo_binary',
-        selfieUrl: selfie || 'verified_selfie_scan_binary'
-      },
-      travelOrigin: {
-        departureCity: departureCity || 'Paris',
-        departureCountry: departureCountry || nationality,
-        preferredAirlineClass: airlineClass
-      },
-      matchPreferences: selectedMatches,
-      attendanceType: attendanceType,
-      accommodationPreferences: {
-        tier: accommodationTier,
-        requirements: accommodationRequirements
-      },
-      additionalInfo: additionalSecurityAnswer,
-      costBreakdown: costs,
-      status: 'PENDING_VERIFICATION',
-      applicationScore: randomApplicationScore,
-      travelReadinessScore: randomTravelReadyScore,
-      priorityLevel,
-      approvalTimeline: isVipUpgrade ? '4 Hours (Sovereign Corridor)' : '48 Hours',
-      reservationStatus: 'PROVISIONAL',
-      attendanceIndex: `SEC-${Math.floor(100 + Math.random() * 899)}/A`
-    };
+  const handleSaveEdit = () => {
+    if (!selectedApp) return;
+    onUpdateApplication(selectedApp.id, {
+      personalInfo: { ...selectedApp.personalInfo, fullName: editFields.fullName, email: editFields.email, phone: editFields.phone, nationality: editFields.nationality },
+      passportInfo: { ...selectedApp.passportInfo, passportNumber: editFields.passportNumber },
+      priorityLevel: editFields.priorityLevel as Application['priorityLevel'],
+      approvalTimeline: editFields.approvalTimeline,
+    });
+    setEditMode(false);
+    setSelectedApp(prev => prev ? { ...prev, personalInfo: { ...prev.personalInfo, fullName: editFields.fullName, email: editFields.email, phone: editFields.phone, nationality: editFields.nationality }, passportInfo: { ...prev.passportInfo, passportNumber: editFields.passportNumber }, priorityLevel: editFields.priorityLevel as Application['priorityLevel'], approvalTimeline: editFields.approvalTimeline } : null);
+  };
 
-    onSubmissionSuccess(finalAppObj);
+  const handleSendDM = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!dmEmail || !dmSubject || !dmMessage) return;
+    onSendDirectMessage(dmEmail, dmSubject, dmMessage);
+    setDmSent(true);
+    setTimeout(() => { setDmSent(false); setDmEmail(''); setDmSubject(''); setDmMessage(''); }, 3000);
+  };
+
+  const handleTicketReplySubmit = (ticketId: string) => {
+    const text = ticketReplies[ticketId];
+    if (!text || !text.trim()) return;
+    onAdminResponse(ticketId, text);
+    setTicketReplies(prev => ({ ...prev, [ticketId]: '' }));
   };
 
   return (
-    <div id="acc_journey_container" className="max-w-4xl w-full mx-auto relative z-10 animate-in fade-in duration-300">
+    <div id="admin_command_deck" className="grid grid-cols-1 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
       
-      {/* 12-Step Horizontal Progress HUD */}
-      <div id="journey_timeline_hud" className="bg-zinc-950/70 backdrop-blur-md border border-zinc-900 rounded-2xl p-4 mb-6">
-        <div className="flex items-center justify-between font-mono text-[9px] text-[#B6B3FF] uppercase tracking-widest mb-3.5">
-          <span>Sovereign Security Gate Cleared: {currentStep} / 12</span>
-          <span>ESTIMATED DURATION: {(costs?.totalUSD || 0 / 1000).toFixed(1)}K VALUE</span>
+      {/* Top Admin Control Strip */}
+      <div className="glass-card lg:col-span-4 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white">
+            <Settings className="w-5 h-5 animate-spin-slow" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider font-sans">Accreditation Management Center</h3>
+            <div className="flex items-center gap-2 mt-1 font-mono text-[9px] text-[#5B5F78] uppercase">
+              <span>ADMINISTRATIVE TERMINAL ACTIVE</span>
+              <span className="text-white font-bold">• CONNECTED</span>
+            </div>
+          </div>
         </div>
-        <div className="relative w-full h-[3px] bg-zinc-900 rounded-full flex justify-between">
-          <div 
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#796BFF] to-[#B6B3FF] rounded-full transition-all duration-300"
-            style={{ width: `${((currentStep - 1) / 11) * 100}%` }}
-          />
-          {Array.from({ length: 12 }).map((_, idx) => (
-            <div 
-              key={idx}
-              className={`w-2.5 h-2.5 rounded-full transform -translate-y-[3.5px] border duration-300 ${
-                idx + 1 <= currentStep 
-                  ? 'bg-[#796BFF] border-[#B6B3FF] scale-125 shadow-[0_0_10px_rgba(121,107,255,0.8)]' 
-                  : 'bg-zinc-950 border-zinc-800'
-              }`}
-            />
-          ))}
+
+        {/* Exit action button */}
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <span className="text-[9px] font-mono text-[#5B5F78] uppercase block font-bold leading-none">ACTIVE USER</span>
+            <span className="text-xs text-white/80 font-mono">System Admin</span>
+          </div>
+          <button
+            onClick={onLogout}
+            className="px-4 py-2 border border-red-500/20 hover:border-red-500/40 rounded-full font-sans text-xs uppercase font-bold text-red-400 hover:bg-red-500/5 duration-150 cursor-pointer active:scale-95"
+          >
+            Logout
+          </button>
         </div>
       </div>
 
-      {/* Main Glass Form Frame */}
-      <div className="bg-zinc-950/80 backdrop-blur-2xl border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.85)] flex flex-col min-h-[500px]">
-        
-        {/* Step Section Name */}
-        <div id="step_pane_header" className="p-6 bg-gradient-to-b from-zinc-900 to-transparent border-b border-zinc-900/40 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#796BFF]/10 border border-[#796BFF]/20 flex items-center justify-center text-[#B6B3FF]">
-              {currentStep === 1 && <User className="w-5 h-5" />}
-              {currentStep === 2 && <MapPin className="w-5 h-5" />}
-              {currentStep === 3 && <FileSpreadsheet className="w-5 h-5" />}
-              {currentStep === 4 && <Fingerprint className="w-5 h-5" />}
-              {currentStep === 5 && <PlaneTakeoff className="w-5 h-5" />}
-              {currentStep === 6 && <Ticket className="w-5 h-5" />}
-              {currentStep === 7 && <Calendar className="w-5 h-5" />}
-              {currentStep === 8 && <Bed className="w-5 h-5" />}
-              {currentStep === 9 && <FileText className="w-5 h-5" />}
-              {currentStep === 10 && <Landmark className="w-5 h-5" />}
-              {currentStep === 11 && <Eye className="w-5 h-5" />}
-              {currentStep === 12 && <ShieldCheck className="w-5 h-5" />}
-            </div>
-            <div>
-              <p className="text-[10px] font-mono uppercase text-zinc-500 tracking-widest">CHAPTER {currentStep} OF XII</p>
-              <h3 className="text-sm md:text-base font-bold font-sans text-white uppercase tracking-tight">
-                {currentStep === 1 && 'Sovereign Representative Personal Details'}
-                {currentStep === 2 && 'Mailing Residence & Judicial Domicile'}
-                {currentStep === 3 && 'Border Control Passport Data'}
-                {currentStep === 4 && 'Biometric Identity Scans Proof'}
-                {currentStep === 5 && 'Logistical Flight & Origin Coordination'}
-                {currentStep === 6 && 'Strategic Match Day Preferences'}
-                {currentStep === 7 && 'Total Experience Clearance Type'}
-                {currentStep === 8 && 'Sabbatical Quarters Premium Lodgings'}
-                {currentStep === 9 && 'Accreditation Risk Self-Assessment'}
-                {currentStep === 10 && 'Dynamic Fee Estimate Breakdown'}
-                {currentStep === 11 && 'Comprehensive Verification Panel'}
-                {currentStep === 12 && 'Sovereign Digital Attestation & Transmission'}
-              </h3>
-            </div>
-          </div>
-          <div className="hidden sm:flex flex-col items-end">
-            <span className="text-[9px] text-zinc-500 uppercase font-mono">Deposit (20%)</span>
-            <span className="text-xs font-mono text-[#B6B3FF] font-bold bg-[#796BFF]/10 border border-[#796BFF]/20 px-2.5 py-1 rounded-full">
-              {formatLocalCurrency(costs?.totalUSD || 0 * 0.2, currentLanguage)}
-            </span>
-          </div>
+
+      {/* Side Administration Menu tab selectors */}
+      <div className="lg:col-span-1 space-y-4">
+        <div id="admin_sidebar_menu" className="glass-card rounded-3xl p-3.5 space-y-1">
+          {[
+            { tag: 'analytics', label: 'Sector Metrics Dashboard', icon: BarChart3 },
+            { tag: 'applications', label: 'Accreditation Dossiers', icon: ClipboardList },
+            { tag: 'payments', label: 'Crypto Ledger Ledger', icon: DollarSign },
+            { tag: 'announcements', label: 'Portal Alerts Broadcast', icon: Megaphone },
+            { tag: 'tickets', label: 'Emergency Support Deck', icon: ShieldAlert },
+            { tag: 'messages', label: 'Direct Message User', icon: Mail },
+          ].map(tab => {
+            const Icon = tab.icon;
+            const isSelected = activeAdminTab === tab.tag;
+            return (
+              <button
+                key={tab.tag}
+                onClick={() => setActiveAdminTab(tab.tag as any)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-sans text-xs text-left cursor-pointer duration-150 transition ${
+                  isSelected 
+                    ? 'bg-[#796BFF]/15 text-[#B6B3FF] border border-[#796BFF]/30 shadow-md' 
+                    : 'text-[#8B8FA8] hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Icon className={`w-4.5 h-4.5 ${isSelected ? 'text-[#B6B3FF]' : 'text-[#5B5F78]'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Dynamic Chapter Render Node */}
-        <div id="step_form_body" className="p-8 flex-1">
-          {/* STEP 1: Personal Info */}
-          {currentStep === 1 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                Accurate representative identification is compulsory for clearance. Standard names must match legal passports identically.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Full Legal Name</label>
-                  <input 
-                    type="text" 
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Marc-Antoine de Saint-Exupéry"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">E-Passport Contact Phone</label>
-                  <input 
-                    type="text" 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. +33 6 42 12 90 88"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Birth Date</label>
-                  <input 
-                    type="date" 
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Sovereign Nationality Claim</label>
-                  <input 
-                    type="text" 
-                    value={nationality}
-                    onChange={(e) => setNationality(e.target.value)}
-                    placeholder="e.g. French"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
+      {/* Main Admin tab panels */}
+      <div className="lg:col-span-3 space-y-6">
+        
+        {/* TAB 1: ANALYTICS & MONITORING */}
+        {activeAdminTab === 'analytics' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Quick Metrics grid */}
+            <div id="admin_quick_metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Accreditation Dossiers</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">{totalApps}</span>
+                <span className="text-[10px] md:text-xs font-sans text-[#796BFF] font-bold block">Received</span>
+                <span className="text-[8px] font-sans text-[#8B8FA8] uppercase tracking-widest block mt-1">TOTAL GLOBAL LOGS</span>
+              </div>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Approved Gateways</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">{approvedApps}</span>
+                <span className="text-[10px] md:text-xs font-sans text-[#796BFF] font-bold block">Passports</span>
+                <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1">APPROVAL RATE: {totalApps > 0 ? Math.round((approvedApps/totalApps)*100) : 0}%</span>
+              </div>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Dynamic Portal Value</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">${totalValueUSD.toLocaleString()}</span>
+                <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1">USD BASIS VALUE REGISTERED</span>
+              </div>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Settled Crypto Ledger</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">${totalValueSettledUSD.toLocaleString()}</span>
+                <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1 font-bold">✓ SECURE BLOCKCHAIN ACCORD</span>
               </div>
             </div>
-          )}
 
-          {/* STEP 2: Address */}
-          {currentStep === 2 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                Specify your territorial residency address. In collaboration with European judicial zones, emergency protocols are indexed here.
-              </p>
-              <div className="space-y-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Street and House Number</label>
-                  <input 
-                    type="text" 
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="e.g. 14 Rue de la Paix"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
+            {/* Simulated Live security operations dashboard charts or logs represent high-security environment */}
+            <div className="glass-card rounded-3xl p-6">
+              <div className="flex justify-between items-center mb-5">
+                <div>
+                  <span className="text-[9px] font-mono text-[#5B5F78] uppercase block">SECURITY TELEMETRY LOG</span>
+                  <h4 className="text-sm font-bold text-white uppercase font-sans tracking-wide">Accreditee Country heatmaps</h4>
                 </div>
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Metropolis / City</label>
-                    <input 
-                      type="text" 
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="e.g. Paris"
-                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Postal Dispatch Code</label>
-                    <input 
-                      type="text" 
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      placeholder="e.g. 75002"
-                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                    />
-                  </div>
-                </div>
+                <span className="text-[9px] font-mono text-white bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full uppercase font-bold animate-pulse">
+                  STABLE SYNC
+                </span>
               </div>
-            </div>
-          )}
 
-          {/* STEP 3: Passport Details */}
-          {currentStep === 3 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                Accreditation requires high-security traveler passports. Passports must possess an expiration timeline exceeding December 2026.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Passport Number</label>
-                  <input 
-                    type="text" 
-                    value={passportNumber}
-                    onChange={(e) => setPassportNumber(e.target.value)}
-                    placeholder="e.g. EU-FR9812450"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Official Expiration Date</label>
-                  <input 
-                    type="date" 
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Country of Issuance Authority</label>
-                  <input 
-                    type="text" 
-                    value={issueCountry}
-                    onChange={(e) => setIssueCountry(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 4: Documents Uploads */}
-          {currentStep === 4 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Upload your digital documents. Biometric scanning and security cross-references will be validated in real time by the Accreditation Office.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Passport Scan Upload */}
-                <div
-                  onClick={() => passportScanRef.current?.click()}
-                  className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5 cursor-pointer hover:border-[#796BFF]/40 transition-colors"
-                >
-                  <input
-                    ref={passportScanRef}
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload('scan', f); }}
-                  />
-                  {passportScan && passportScan.startsWith('data:image') ? (
-                    <img src={passportScan} alt="Passport scan" className="w-20 h-20 object-cover rounded-lg border border-zinc-700" />
-                  ) : (
-                    <UploadCloud className="w-8 h-8 text-[#796BFF]" />
-                  )}
-                  <div>
-                    <h5 className="text-xs font-semibold text-white font-sans">International Passport</h5>
-                    <p className="text-[10px] text-zinc-500 font-sans mt-1 uppercase font-semibold">MAX. 15MB • PDF, JPG, PNG</p>
-                  </div>
-                  {passportScan ? (
-                    <div className="text-[10px] font-sans text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded">
-                      <Check className="w-3.5 h-3.5" /> {passportScanFile?.name || 'UPLOADED'}
-                    </div>
-                  ) : (
-                    <span className="px-4 py-1.5 border border-[#796BFF]/30 text-[10px] font-sans uppercase text-[#B6B3FF] rounded font-semibold">
-                      Click to Upload
-                    </span>
-                  )}
-                </div>
-
-                {/* Passport Photo Upload */}
-                <div
-                  onClick={() => passportPhotoRef.current?.click()}
-                  className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5 cursor-pointer hover:border-[#796BFF]/40 transition-colors"
-                >
-                  <input
-                    ref={passportPhotoRef}
-                    type="file"
-                    accept=".jpg,.jpeg,.png"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload('photo', f); }}
-                  />
-                  {passportPhoto && passportPhoto.startsWith('data:image') ? (
-                    <img src={passportPhoto} alt="Passport photo" className="w-20 h-20 object-cover rounded-full border-2 border-[#796BFF]/40" />
-                  ) : (
-                    <UploadCloud className="w-8 h-8 text-[#796BFF]" />
-                  )}
-                  <div>
-                    <h5 className="text-xs font-semibold text-white font-sans">Passport Photo</h5>
-                    <p className="text-[10px] text-zinc-500 font-sans mt-1 uppercase font-semibold">MAX. 15MB • JPG, PNG ONLY</p>
-                  </div>
-                  {passportPhoto ? (
-                    <div className="text-[10px] font-sans text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded">
-                      <Check className="w-3.5 h-3.5" /> {passportPhotoFile?.name || 'UPLOADED'}
-                    </div>
-                  ) : (
-                    <span className="px-4 py-1.5 border border-[#796BFF]/30 text-[10px] font-sans uppercase text-[#B6B3FF] rounded font-semibold">
-                      Click to Upload
-                    </span>
-                  )}
-                </div>
-
-                {/* LIVE Facial Webcam Selfie verification scanner box */}
-                <div className="md:col-span-2 p-6 rounded-2xl border border-[#796BFF]/20 bg-zinc-950 flex flex-col items-center justify-center text-center space-y-4">
-                  {facialScanActive ? (
-                    <div className="space-y-3 font-sans py-4">
-                      <div className="relative mx-auto w-12 h-12">
-                        <div className="absolute inset-0 rounded-full border-2 border-[#796BFF] border-t-transparent animate-spin" />
-                        <Camera className="absolute inset-2 w-8 h-8 text-[#796BFF]" />
-                      </div>
-                      <p className="text-[10px] text-[#796BFF] font-bold uppercase tracking-wider">{scanMessage}</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-12 h-12 rounded-full bg-[#796BFF]/10 border border-[#796BFF]/20 flex items-center justify-center text-[#796BFF]">
-                        <Camera className="w-6 h-6 animate-pulse" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-white font-sans uppercase tracking-widest">[ REAL-TIME SECURE SELFIE ACCREDITATION ]</h4>
-                        <p className="text-[10px] text-zinc-400 font-sans mt-1 max-w-md mx-auto leading-relaxed">
-                          Crosscheck your real physical face against database algorithms to satisfy premium travel and visa accreditation metrics instantly.
-                        </p>
-                      </div>
-                      {selfie ? (
-                        <div className="text-[10px] font-sans text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-4 py-1.5 rounded-full uppercase tracking-wider font-bold">
-                          <CheckCircle2 className="w-4 h-4" /> FACIAL PROFILE CONFIRMED SECURE
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={triggerFacialMatching}
-                          className="px-6 py-2 bg-white hover:bg-zinc-100 text-[#0C0D12] font-sans text-[10px] font-bold uppercase tracking-widest rounded-xl duration-150 cursor-pointer shadow-lg active:scale-95"
-                        >
-                          Execute Realtime Facial Match
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 5: Travel Origin */}
-          {currentStep === 5 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                Luxury-level attendance includes high-end private flight logistics or coordination of commercial first-class corridors.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Departure Airport / City Coordinates</label>
-                  <input 
-                    type="text" 
-                    value={departureCity}
-                    onChange={(e) => setDepartureCity(e.target.value)}
-                    placeholder="e.g. Paris"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Departure Sovereign Territory</label>
-                  <input 
-                    type="text" 
-                    value={departureCountry}
-                    onChange={(e) => setDepartureCountry(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Coordination Jet / Cabin Tier</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['Economy', 'Business', 'Private Jet Offering'] as const).map((tier) => (
-                      <button
-                        key={tier}
-                        type="button"
-                        onClick={() => setAirlineClass(tier)}
-                        className={`py-3 px-3 rounded-xl border text-[10px] md:text-xs font-sans font-bold uppercase transition text-center cursor-pointer ${
-                          airlineClass === tier 
-                            ? 'bg-[#796BFF]/12 text-[#B6B3FF] border-[#796BFF]/40 shadow-glow' 
-                            : 'border-zinc-800 text-zinc-400 hover:border-zinc-700'
-                        }`}
-                      >
-                        {tier}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 6: Match Preferences */}
-          {currentStep === 6 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Select your designated match dates. Luxury tickets & VIP boxes with fast-track stadium clearance will be allocated upon approval.
-              </p>
-
-              <div id="matches_bento_grid" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {DESIGNATED_MATCHES.map((match) => {
-                  const isSelected = selectedMatches.some(m => m.id === match.id);
-                  return (
-                    <div
-                      key={match.id}
-                      onClick={() => handleMatchToggle(match)}
-                      className={`p-4 rounded-2xl border text-left cursor-pointer duration-200 transition ${
-                        isSelected 
-                          ? 'bg-[#796BFF]/12 border-[#796BFF]/50 shadow-[0_4px_15px_rgba(121,107,255,0.15)] glass-glow' 
-                          : 'bg-zinc-900/30 border-zinc-800/80 hover:border-zinc-700'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[9px] font-sans bg-zinc-950 text-[#B6B3FF] border border-[#796BFF]/20 px-2 py-0.5 rounded uppercase font-semibold">
-                          {match.stage}
-                        </span>
-                        <span className="text-[10px] font-sans text-zinc-500 font-bold">
-                          {formatLocalCurrency(match.estimatedPrice, currentLanguage)}
-                        </span>
-                      </div>
-                      <h4 className="text-xs font-bold text-white font-sans">{match.homeTeam} vs {match.awayTeam}</h4>
-                      <p className="text-[10px] font-sans text-zinc-400 mt-1 uppercase tracking-tight font-medium">{match.venue}</p>
-                      <div className="mt-3.5 flex items-center justify-between font-sans text-[9px] text-zinc-500 uppercase font-semibold">
-                        <span>DATE: {match.date}</span>
-                        <span className={isSelected ? 'text-[#B6B3FF] font-bold' : ''}>
-                          {isSelected ? '✓ SELECTED FOR DEPLOYMENT' : '+ COORDINATE ACCESS'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* STEP 7: Attendance Type */}
-          {currentStep === 7 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                Choose the timeframe of your high-end security visa clearance. Pricing models adapt with stay duration.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
+              {/* Graphical simulation of country distribution */}
+              <div className="space-y-4 font-mono text-xs text-[#8B8FA8]">
                 {[
-                  { code: 'GROUP_STAGE_ONLY', tag: 'Group Stage Only', desc: '10 Days clearance, Group Stage priority tickets' },
-                  { code: 'KNOCKOUTS_ONLY', tag: 'Knockout Stages Only', desc: '14 Days clearance, Round of 16 through Semis' },
-                  { code: 'VIP_FINALS', tag: 'VIP Semis & Finals', desc: '5 Days ultra clearance, Presidential Suite allocation' },
-                  { code: 'FULL', tag: 'Full World Cup Journey', desc: '21 Days unrestricted VIP status, luxury coverage' }
-                ].map((item) => (
-                  <button
-                    key={item.code}
-                    type="button"
-                    onClick={() => setAttendanceType(item.code as any)}
-                    className={`p-4 rounded-2xl border text-left duration-150 cursor-pointer ${
-                      attendanceType === item.code 
-                        ? 'bg-[#796BFF]/12 border-[#796BFF]/50' 
-                        : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
-                    }`}
-                  >
-                    <span className="block text-xs font-bold text-white uppercase font-sans mb-1">{item.tag}</span>
-                    <p className="text-[10px] text-zinc-400 font-sans tracking-tight">{item.desc}</p>
-                  </button>
+                  { name: 'France (UEFA Corridor A)', count: applications.filter(a => a.personalInfo?.nationality === 'French').length, color: 'bg-[#796BFF]' },
+                  { name: 'Germany (UEFA Corridor B)', count: applications.filter(a => a.personalInfo?.nationality === 'German').length, color: 'bg-[#B6B3FF]' },
+                  { name: 'Spain / Iberia Area', count: applications.filter(a => a.personalInfo?.nationality === 'Spanish').length, color: 'bg-sky-400' },
+                  { name: 'European Sovereigns (Mixed)', count: applications.filter(a => a.personalInfo?.nationality !== 'French' && a.personalInfo?.nationality !== 'German' && a.personalInfo?.nationality !== 'Spanish').length, color: 'bg-zinc-800' }
+                ].map((item, idx) => (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex justify-between font-bold">
+                      <span className="text-white text-[11px] uppercase">{item.name}</span>
+                      <span>{item.count} Dossiers</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${item.color} rounded-full`}
+                        style={{ width: `${totalApps > 0 ? (item.count / totalApps) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* STEP 8: Accommodations */}
-          {currentStep === 8 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                We manage official premium resort allocation. Accommodations are isolated with VIP security corridors.
-              </p>
-              <div className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { code: 'Premium Hotel', tag: 'Premium Executive Room', desc: '5-star high comfort close to primary hosts' },
-                    { code: 'Luxury Resort', tag: 'Ambassador Beach Resort', desc: 'Fully serviced private resort bungalows' },
-                    { code: 'Private Villa', tag: 'Secure Sovereign Villa', desc: 'Gated fortress complex with helipad coordinate' },
-                    { code: 'Sovereign Suite', tag: 'Presidential Penthouse', desc: 'Top floor secure suites with 24/7 private butler & convoy' }
-                  ].map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => setAccommodationTier(item.code as any)}
-                      className={`p-3.5 rounded-2xl border text-left duration-150 cursor-pointer ${
-                        accommodationTier === item.code 
-                          ? 'bg-[#796BFF]/12 border-[#796BFF]/50' 
-                          : 'bg-zinc-900/30 border-zinc-800 hover:border-zinc-700'
-                      }`}
+        {/* TAB 2: APPLICATIONS MANAGEMENT */}
+        {activeAdminTab === 'applications' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            {/* Filter bar */}
+            <div className="flex items-center relative">
+              <Search className="w-4 h-4 text-[#5B5F78] absolute left-3" />
+              <input
+                type="text"
+                placeholder="Search registered dossiers by name, passport, clearance index..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+              />
+            </div>
+
+            {/* Grid listings of dossiers */}
+            <div className="glass-card rounded-3xl overflow-hidden">
+              <div className="p-4 bg-[#1C1C27]/30 border-b border-white/[0.06] flex justify-between items-center font-mono text-[10px] text-[#8B8FA8] uppercase tracking-widest font-bold">
+                <span>REPRESENTATIVE NAME</span>
+                <span className="hidden md:inline">PASSPORT CODE</span>
+                <span className="hidden md:inline">SECURITY LEVEL</span>
+                <span>STATUS DECISION</span>
+              </div>
+
+              {filteredApps.length > 0 ? (
+                <div className="divide-y divide-white/[0.06]">
+                  {filteredApps.map((app) => (
+                    <div 
+                      key={app.id} 
+                      className="p-4 flex items-center justify-between gap-4 hover:bg-[#1C1C27]/30 cursor-pointer duration-150"
+                      onClick={() => setSelectedApp(app)}
                     >
-                      <span className="block text-xs font-bold text-white uppercase font-sans mb-1">{item.tag}</span>
-                      <p className="text-[10px] text-zinc-400 font-sans leading-tight">{item.desc}</p>
-                    </button>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#1C1C27] border border-white/[0.08] flex items-center justify-center text-xs text-[#8B8FA8]">
+                          👤
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo?.fullName || ''}</h5>
+                          <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.applicationNumber}</span>
+                        </div>
+                      </div>
+
+                      <div className="hidden md:block font-mono text-[10px] text-[#8B8FA8]">
+                        {app.passportInfo.passportNumber}
+                      </div>
+
+                      <div className="hidden md:block font-mono text-[9px] text-white uppercase bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full font-bold">
+                        {app.priorityLevel}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[10px] font-mono font-bold uppercase ${
+                          app.status === 'CLEARANCE_GRANTED' ? 'text-white' : 'text-white animate-pulse'
+                        }`}>
+                          {app.status === 'CLEARANCE_GRANTED' ? 'GRANTED' : 'UNDER REVIEW'}
+                        </span>
+                      </div>
+                    </div>
                   ))}
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-[#B6B3FF] font-bold">Specific Dietary or Convoy Escort Demands</label>
-                  <textarea
-                    rows={2}
-                    value={accommodationRequirements}
-                    onChange={(e) => setAccommodationRequirements(e.target.value)}
-                    placeholder="e.g. Kosher meal structures, bulletproof transport shuttles from terminal."
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
-                  />
+              ) : (
+                <div className="p-12 text-center text-[#5B5F78] font-mono text-[11px] uppercase tracking-wider">
+                  Zero corresponding dossiers registered in database
                 </div>
-              </div>
+              )}
             </div>
-          )}
 
-          {/* STEP 9: Security assessment */}
-          {currentStep === 9 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed max-w-xl">
-                As a high-security embassy-grade clearance system, users must attest to zero previous judicial constraints to confirm rapid deployment status.
-              </p>
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/20 text-[10px] font-sans text-zinc-400 uppercase tracking-tight font-semibold">
-                  "I confirm that I possess zero active judicial limits in Europe, do not reside under global sanction list, and represent a premium logistics status."
+            {/* Highlighted Selected Application Decision Sandbox Modal Panel */}
+            {selectedApp && (
+              <div className="glass-card glass-glow rounded-3xl p-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex justify-between items-start border-b border-white/[0.06] pb-4">
+                  <div>
+                    <span className="text-[8px] font-mono text-white uppercase tracking-widest block font-bold">DECISION VIEWPORT</span>
+                    <h4 className="text-sm font-bold text-white uppercase font-sans mt-0.5">
+                      Accreditation Docket: {selectedApp.applicationNumber}
+                    </h4>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedApp(null)}
+                    className="text-[#5B5F78] hover:text-white font-mono text-xs cursor-pointer uppercase"
+                  >
+                    [ Close Decision Window ]
+                  </button>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-sans uppercase tracking-widest text-zinc-400 font-bold">Official Attestation Confirmation</label>
-                  <input 
-                    type="text" 
-                    value={additionalSecurityAnswer}
-                    onChange={(e) => setAdditionalSecurityAnswer(e.target.value)}
-                    placeholder="Enter short confirmation details"
-                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
 
-          {/* STEP 10: Pricing calculations */}
-          {currentStep === 10 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Fees are converted dynamically to your native currency. Upgrading activates Priority Sovereign status for elite verification times.
-              </p>
+                {/* Passport & Selfie Scan validation images */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl glass flex flex-col items-center justify-center text-center space-y-2">
+                    <CheckSquare className="w-5 h-5 text-white" />
+                    <div>
+                      <h5 className="text-[11px] font-bold text-white font-sans uppercase">Verify Passport Binary Scan</h5>
+                      <span className="text-[9px] font-mono text-[#5B5F78] block">ENACTED THROUGH SECURITY API</span>
+                    </div>
+                    <div className="text-[9px] font-mono text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                      ✓ ENCRYPTED FILE INTEGRITY SCAN: PASS
+                    </div>
+                  </div>
 
-              <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-950 flex flex-col space-y-4">
-                <div className="flex justify-between items-center text-xs font-sans text-zinc-500 uppercase font-semibold">
-                  <span>Accreditation Base Fee</span>
-                  <span>{formatLocalCurrency(costs.baseUSD, currentLanguage)}</span>
+                  <div className="p-4 rounded-xl glass flex flex-col items-center justify-center text-center space-y-2">
+                    <CheckSquare className="w-5 h-5 text-white" />
+                    <div>
+                      <h5 className="text-[11px] font-bold text-white font-sans uppercase">Verify Selfie Match Facial Node</h5>
+                      <span className="text-[9px] font-mono text-[#5B5F78] block">PROCESSED BY IMMIGRATION SECURITY</span>
+                    </div>
+                    <div className="text-[9px] font-mono text-white bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                      ✓ FACIAL COMPARATIVE MATCH RATE: 99.8%
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs font-sans text-zinc-500 uppercase font-semibold">
-                  <span>Matches Fast-Pass Seat Costs</span>
-                  <span>{formatLocalCurrency(costs.matchCostUSD, currentLanguage)}</span>
+
+                {/* Edit Mode toggle */}
+                <div className="flex gap-3 pt-2 border-t border-white/[0.06] flex-wrap">
+                  <button
+                    onClick={() => { openEditMode(selectedApp); }}
+                    className="flex items-center gap-1.5 border border-white/[0.08] hover:border-white/20 text-white/80 hover:text-white px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Edit Application
+                  </button>
                 </div>
-                <div className="flex justify-between items-center text-xs font-sans text-zinc-500 uppercase font-semibold">
-                  <span>Sovereign Stay Residence Costs</span>
-                  <span>{formatLocalCurrency(costs.accommodationCostUSD, currentLanguage)}</span>
-                </div>
-                {isVipUpgrade && (
-                  <div className="flex justify-between items-center text-xs font-sans text-[#B6B3FF] uppercase font-bold">
-                    <span>Sovereign VIP Passway Premium</span>
-                    <span>{formatLocalCurrency(costs.priorityUpgradeCostUSD, currentLanguage)}</span>
+
+                {/* Inline Edit Fields */}
+                {editMode && (
+                  <div className="mt-4 p-5 rounded-2xl glass space-y-4 animate-in fade-in duration-200">
+                    <h5 className="text-[10px] font-mono font-bold text-white uppercase tracking-widest border-b border-white/[0.06] pb-3">
+                      Edit Applicant Details
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { label: 'Full Name', key: 'fullName' },
+                        { label: 'Email', key: 'email' },
+                        { label: 'Phone', key: 'phone' },
+                        { label: 'Nationality', key: 'nationality' },
+                        { label: 'Passport Number', key: 'passportNumber' },
+                        { label: 'Approval Timeline', key: 'approvalTimeline' },
+                      ].map(({ label, key }) => (
+                        <div key={key} className="space-y-1">
+                          <label className="text-[9px] font-sans text-[#5B5F78] uppercase block font-bold">{label}</label>
+                          <input
+                            type="text"
+                            value={(editFields as any)[key]}
+                            onChange={e => setEditFields(prev => ({ ...prev, [key]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+                          />
+                        </div>
+                      ))}
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-sans text-[#5B5F78] uppercase block font-bold">Priority Level</label>
+                        <select
+                          value={editFields.priorityLevel}
+                          onChange={e => setEditFields(prev => ({ ...prev, priorityLevel: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg glass-input text-xs text-white focus:outline-none font-sans"
+                        >
+                          <option value="STANDARD">STANDARD</option>
+                          <option value="EXECUTIVE">EXECUTIVE</option>
+                          <option value="EXECUTIVE_VIP">EXECUTIVE VIP</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-5 py-2.5 bg-white hover:bg-zinc-100 text-[#13131A] font-bold text-xs uppercase rounded-xl cursor-pointer active:scale-95 duration-150"
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        onClick={() => setEditMode(false)}
+                        className="px-5 py-2.5 glass-btn text-white/60 hover:text-white font-mono text-xs uppercase rounded-xl cursor-pointer duration-150"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
-                <div className="pt-4 border-t border-zinc-900 flex justify-between items-center">
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">Estimated Sovereignty Rate</span>
-                  <span className="text-base font-extrabold text-[#B6B3FF]">{formatLocalCurrency(costs?.totalUSD || 0, currentLanguage)}</span>
-                </div>
-                <div className="pt-3 border-t border-zinc-900 flex justify-between items-center bg-[#796BFF]/05 rounded-xl px-3 py-2">
-                  <div>
-                    <span className="text-xs font-bold text-[#00E676] uppercase tracking-wider block">Required Deposit (20%)</span>
-                    <span className="text-[9px] text-zinc-500 uppercase">Balance settled on arrival clearance</span>
-                  </div>
-                  <span className="text-base font-extrabold text-[#00E676]">{formatLocalCurrency(costs?.totalUSD || 0 * 0.2, currentLanguage)}</span>
+
+                {/* Operator Actions */}
+                <div className="flex gap-3 justify-end pt-2 flex-wrap">
+                  {(['Super Admin', 'Verification Officer'] as AdminRole[]).includes(currentAdminRole) && (
+                    <>
+                      <button
+                        onClick={() => {
+                          onUpdateAppStatus(selectedApp.id, 'CLEARANCE_GRANTED');
+                          setSelectedApp(null);
+                        }}
+                        className="flex items-center gap-1.5 bg-white hover:bg-zinc-200 text-[#13131A] px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer active:scale-95"
+                      >
+                        <ShieldCheck className="w-4 h-4" /> Issue Gate Clearance
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          onUpdateAppStatus(selectedApp.id, 'PASSPORT_REJECTED');
+                          setSelectedApp(null);
+                        }}
+                        className="flex items-center gap-1.5 bg-red-950 hover:bg-red-900 hover:text-white text-red-400 px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer border border-red-500/20"
+                      >
+                        <X className="w-4 h-4" /> REJECT DOSSIER PASSPORT
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          onUpdateAppStatus(selectedApp.id, 'DOCUMENT_REQUESTED');
+                          setSelectedApp(null);
+                        }}
+                        className="flex items-center gap-1.5 border border-white/[0.08] hover:border-white/[0.12] hover:bg-[#1C1C27] text-white/80 px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4" /> REQUEST NEW UPLOAD
+                      </button>
+                    </>
+                  )}
+
+                  {currentAdminRole === 'Super Admin' && (
+                    <button
+                      onClick={() => {
+                        onDeleteApplication(selectedApp.id);
+                        setSelectedApp(null);
+                      }}
+                      className="flex items-center gap-1.5 bg-[#1C1C27] hover:bg-white/[0.06] hover:text-red-400 border border-white/[0.08] p-2.5 rounded-xl duration-150 cursor-pointer"
+                      title="De-register App"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* VIP Upgrade Toggle */}
-              <div 
-                onClick={() => setIsVipUpgrade(!isVipUpgrade)}
-                className={`p-4 rounded-xl border cursor-pointer duration-150 flex items-center justify-between ${
-                  isVipUpgrade 
-                    ? 'bg-[#796BFF]/12 border-[#796BFF]/40' 
-                    : 'bg-zinc-900/30 border-zinc-800/60 hover:bg-zinc-900/50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${isVipUpgrade ? 'bg-[#796BFF] border-[#796BFF]' : 'border-zinc-700'}`}>
-                    {isVipUpgrade && <Check className="w-3.5 h-3.5 text-white" />}
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-white uppercase">Activate Sovereign VIP Priority Access Corridor</span>
-                    <p className="text-[9px] text-[#B6B3FF] font-sans mt-0.5 uppercase font-bold">4-HOUR ULTRA-RAPID APPROVALS BY OFFICIAL ACCREDITATION COUNCILS</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 11: Application Review */}
-          {currentStep === 11 && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Confirm your representative details. Once transmitted, documents under judicial verification can only be modified by specific appeal.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 text-xs font-sans p-5 rounded-2xl border border-zinc-900 bg-[#121420]">
-                <div>
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Representative Name</span>
-                  <span className="text-white">{fullName || 'Marc-Antoine de Saint-Exupéry'}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Constituency</span>
-                  <span className="text-white">{nationality}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Passport Identification</span>
-                  <span className="text-white">{passportNumber || 'EU-FR9812450'}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Departing Air Hub</span>
-                  <span className="text-white">{departureCity} ({airlineClass})</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Selected Access matches ({selectedMatches.length})</span>
-                  <span className="text-[#B6B3FF] font-semibold">
-                    {selectedMatches.map(m => `${m.homeTeam} vs ${m.awayTeam}`).join(', ')}
-                  </span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-[9px] text-zinc-500 uppercase block font-bold">Lodging Base</span>
-                  <span className="text-white">{accommodationTier} ({accommodationRequirements})</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 12: Final Submission */}
-          {currentStep === 12 && (
-            <div className="space-y-6 text-center py-6 animate-in fade-in slide-in-from-right-4 duration-300 max-w-lg mx-auto">
-              <div className="w-16 h-16 rounded-full bg-[#796BFF]/10 border border-[#796BFF]/30 flex items-center justify-center mx-auto text-[#B6B3FF]">
-                <ShieldCheck className="w-8 h-8 animate-pulse" />
-              </div>
-
-              <div>
-                <h4 className="text-sm font-bold font-sans text-white uppercase tracking-widest">TRANSMIT UNDER SOVEREIGN SECURITY DECREE</h4>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  By clicking submit, I certify that my identity documents match global border databases, and I request priority entry into the World Cup 2026.
+        {/* TAB 3: CRYPTO CLEARANCE MATRIX */}
+        {activeAdminTab === 'payments' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="p-4.5 bg-white/5 border border-white/8 rounded-2xl flex items-center gap-3">
+              <Wallet className="w-5 h-5 text-white shrink-0" />
+              <div className="font-sans text-xs">
+                <p className="text-white font-bold uppercase">Sovereign settlement audits matrix</p>
+                <p className="text-[#8B8FA8] font-mono text-[10px] mt-0.5 uppercase">
+                  Verify currency rates and proof attachments before granting final accreditee clearances.
                 </p>
               </div>
+            </div>
 
-              <div className="bg-[#796BFF]/5 border border-[#796BFF]/15 rounded-xl p-3 text-[10px] font-sans text-[#B6B3FF] uppercase tracking-tight font-bold">
-                CONSTITUENCIES ACCREDITATION KEY: WORLD-CUP-SEC-M26
+            {/* SEARCH AND FILTERS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#5B5F78] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by traveler, email, application..."
+                  value={paymentSearch}
+                  onChange={(e) => setPaymentSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+                />
+              </div>
+
+              <select
+                value={paymentStatusFilter}
+                onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                className="px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg fill='none' stroke='white' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M19 9l-7 7-7-7'></path></svg>")`, backgroundPosition: 'right 16px center', backgroundSize: '14px', backgroundRepeat: 'no-repeat' }}
+              >
+                <option value="ALL" className="bg-[#13131A] text-white">All Statuses</option>
+                <option value="PENDING" className="bg-[#13131A] text-white">Pending Verification</option>
+                <option value="APPROVED" className="bg-[#13131A] text-white">Approved</option>
+                <option value="REJECTED" className="bg-[#13131A] text-white">Rejected</option>
+              </select>
+
+              <select
+                value={paymentCryptoFilter}
+                onChange={(e) => setPaymentCryptoFilter(e.target.value as any)}
+                className="px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans appearance-none"
+                style={{ backgroundImage: `url("data:image/svg+xml;utf8,<svg fill='none' stroke='white' stroke-width='2' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path d='M19 9l-7 7-7-7'></path></svg>")`, backgroundPosition: 'right 16px center', backgroundSize: '14px', backgroundRepeat: 'no-repeat' }}
+              >
+                <option value="ALL" className="bg-[#13131A] text-white">All Cryptocurrencies</option>
+                <option value="ETH" className="bg-[#13131A] text-white">Ethereum (ETH)</option>
+                <option value="BTC" className="bg-[#13131A] text-white">Bitcoin (BTC)</option>
+                <option value="SOL" className="bg-[#13131A] text-white">Solana (SOL)</option>
+              </select>
+            </div>
+
+            {/* PAYMENTS LIST */}
+            <div className="glass-card rounded-3xl overflow-hidden">
+              <div className="p-4 bg-[#1C1C27]/30 border-b border-white/[0.06] grid grid-cols-2 md:grid-cols-6 gap-2 font-mono text-[9px] text-[#8B8FA8] uppercase tracking-widest font-bold">
+                <span className="col-span-2">Traveler</span>
+                <span className="hidden md:inline">Crypto Asset</span>
+                <span className="hidden md:inline">Deposit (10%) / Total</span>
+                <span className="hidden md:inline">Date Submitted</span>
+                <span>Status</span>
+              </div>
+
+              {paymentFilteredApps.length > 0 ? (
+                <div className="divide-y divide-white/[0.06]">
+                  {paymentFilteredApps.map((app) => {
+                    const payDetails = app.paymentDetails;
+                    const method = payDetails?.method || 'N/A';
+                    const depositAmt = payDetails?.depositAmountUSD || ((app.costBreakdown?.totalUSD || 0) * 0.2);
+                    const totalAmt = app.costBreakdown?.totalUSD || 0;
+                    const cryptoAmt = payDetails?.amountCrypto;
+                    const submittedAt = payDetails?.uploadedAt ? new Date(payDetails.uploadedAt).toLocaleDateString() : 'N/A';
+                    const status = payDetails?.status || 'PENDING_VERIFICATION';
+
+                    return (
+                      <div
+                        key={app.id}
+                        onClick={() => {
+                          setSelectedPaymentApp(app);
+                          setInternalNotesText(payDetails?.internalNotes || '');
+                          setRejectionReasonText(payDetails?.rejectionReason || '');
+                          setShowRejectForm(false);
+                          setZoomScale(1);
+                        }}
+                        className={`p-4 grid grid-cols-2 md:grid-cols-6 gap-2 items-center hover:bg-[#1C1C27]/30 cursor-pointer duration-150 ${selectedPaymentApp?.id === app.id ? 'bg-[#796BFF]/5' : ''}`}
+                      >
+                        <div className="col-span-2 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#1C1C27] border border-white/[0.08] flex items-center justify-center text-xs text-[#8B8FA8]">
+                            💰
+                          </div>
+                          <div>
+                            <h5 className="text-xs font-bold text-white font-sans">{app.personalInfo?.fullName || ''}</h5>
+                            <span className="text-[9px] font-mono text-[#5B5F78] uppercase tracking-wider block mt-0.5">{app.personalInfo?.email || ''}</span>
+                          </div>
+                        </div>
+
+                        <div className="hidden md:block font-mono text-xs text-white">
+                          {method} {cryptoAmt ? `(${cryptoAmt})` : ''}
+                        </div>
+
+                        <div className="hidden md:block font-mono text-xs text-white">
+                          <span className="font-bold text-[#B6B3FF]">${depositAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="text-[10px] text-[#5B5F78] block">/ ${totalAmt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+
+                        <div className="hidden md:block font-mono text-[10px] text-[#8B8FA8]">
+                          {submittedAt}
+                        </div>
+
+                        <div>
+                          <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded-full ${
+                            status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            status === 'REJECTED' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                            'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse'
+                          }`}>
+                            {status === 'PENDING_VERIFICATION' ? 'PENDING' : status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-12 text-center text-[#5B5F78] font-mono text-[11px] uppercase tracking-wider">
+                  Zero corresponding payments found in database
+                </div>
+              )}
+            </div>
+
+            {/* EXPANDED REVIEW SECTION */}
+            {selectedPaymentApp && (
+              <div className="glass-card glass-glow rounded-3xl p-6 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                <div className="flex justify-between items-start border-b border-white/[0.06] pb-4">
+                  <div>
+                    <span className="text-[8px] font-mono text-white uppercase tracking-widest block font-bold">PAYMENT AUDIT VIEWPORT</span>
+                    <h4 className="text-sm font-bold text-white uppercase font-sans mt-0.5">
+                      Verification Docket: {selectedPaymentApp.applicationNumber}
+                    </h4>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedPaymentApp(null)}
+                    className="text-[#5B5F78] hover:text-white font-mono text-xs cursor-pointer uppercase"
+                  >
+                    [ Close Audit Window ]
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* LEFT: Proof Viewer */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h5 className="text-[11px] font-bold text-white font-sans uppercase">Uploaded Proof document</h5>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Zoom -
+                        </button>
+                        <button
+                          onClick={() => setZoomScale(1)}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                        <button
+                          onClick={() => setZoomScale(prev => Math.min(3, prev + 0.25))}
+                          className="px-2 py-1 bg-white/5 hover:bg-white/10 text-white rounded text-[10px] font-mono cursor-pointer"
+                        >
+                          Zoom +
+                        </button>
+                        {selectedPaymentApp.paymentDetails?.proofUrl && (
+                          <a
+                            href={selectedPaymentApp.paymentDetails.proofUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 bg-[#796BFF]/20 hover:bg-[#796BFF]/30 text-[#B6B3FF] rounded text-[10px] font-mono inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            Open External
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="relative border border-white/10 rounded-xl bg-zinc-950/80 overflow-hidden flex items-center justify-center min-h-[300px] max-h-[450px]">
+                      {selectedPaymentApp.paymentDetails?.proofUrl ? (
+                        selectedPaymentApp.paymentDetails.proofUrl.toLowerCase().endsWith('.pdf') ? (
+                          <iframe 
+                            src={selectedPaymentApp.paymentDetails.proofUrl} 
+                            className="w-full h-[400px] border-none" 
+                            title="Payment Proof PDF"
+                          />
+                        ) : (
+                          <div className="w-full h-full overflow-auto p-4 flex items-center justify-center">
+                            <img
+                              src={selectedPaymentApp.paymentDetails.proofUrl}
+                              style={{ transform: `scale(${zoomScale})`, transition: 'transform 0.15s ease' }}
+                              className="max-w-full max-h-[380px] object-contain rounded-lg"
+                              alt="Payment Proof document"
+                            />
+                          </div>
+                        )
+                      ) : (
+                        <span className="text-[#5B5F78] font-mono text-xs uppercase">No proof file on record</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RIGHT: Transaction Metadata and Actions */}
+                  <div className="space-y-5 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      {/* Details list */}
+                      <div className="grid grid-cols-2 gap-4 font-mono text-xs bg-[#13131A] p-4 rounded-xl border border-white/[0.06]">
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Name:</span>
+                          <span className="text-white font-sans font-bold">{selectedPaymentApp.personalInfo?.fullName || ''}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Applicant Email:</span>
+                          <span className="text-white font-sans">{selectedPaymentApp.personalInfo?.email || ''}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Crypto Asset:</span>
+                          <span className="text-white font-bold">{selectedPaymentApp.paymentDetails?.method || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Equivalent Crypto:</span>
+                          <span className="text-white font-bold">{selectedPaymentApp.paymentDetails?.amountCrypto || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Deposit Value (20%):</span>
+                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || ((selectedPaymentApp.costBreakdown?.totalUSD || 0) * 0.2)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Package Total Value:</span>
+                          <span className="text-white font-bold">${(selectedPaymentApp.costBreakdown?.totalUSD || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Submission Date:</span>
+                          <span className="text-white">{selectedPaymentApp.paymentDetails?.uploadedAt ? new Date(selectedPaymentApp.paymentDetails.uploadedAt).toLocaleString() : 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Current Payment Status:</span>
+                          <span className="text-white font-bold uppercase">{selectedPaymentApp.paymentDetails?.status || 'PENDING'}</span>
+                        </div>
+                      </div>
+
+                      {/* Passport Documents */}
+                      {(selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:') || selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:')) && (
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Passport Documents</span>
+                          <div className="flex gap-3 flex-wrap">
+                            {selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">International Passport</span>
+                                <a href={selectedPaymentApp.documents.passportScanUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportScanUrl} alt="Passport scan" className="w-24 h-24 object-cover rounded-lg border border-zinc-700 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                            {selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">Passport Photo</span>
+                                <a href={selectedPaymentApp.documents.passportPhotoUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportPhotoUrl} alt="Passport photo" className="w-24 h-24 object-cover rounded-full border-2 border-[#796BFF]/40 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Passport Documents */}
+                      {(selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:') || selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:')) && (
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Passport Documents</span>
+                          <div className="flex gap-3 flex-wrap">
+                            {selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">International Passport</span>
+                                <a href={selectedPaymentApp.documents.passportScanUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportScanUrl} alt="Passport scan" className="w-24 h-24 object-cover rounded-lg border border-zinc-700 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                            {selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">Passport Photo</span>
+                                <a href={selectedPaymentApp.documents.passportPhotoUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportPhotoUrl} alt="Passport photo" className="w-24 h-24 object-cover rounded-full border-2 border-[#796BFF]/40 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Internal Notes textarea */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">
+                          Treasury Internal Notes
+                        </label>
+                        <div className="flex gap-2">
+                          <textarea
+                            rows={3}
+                            value={internalNotesText}
+                            onChange={(e) => setInternalNotesText(e.target.value)}
+                            placeholder="Add administrative notes regarding this transaction..."
+                            className="flex-1 px-3 py-2 rounded-xl glass-input text-xs text-white placeholder-zinc-600 focus:outline-none font-sans resize-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updatedApp: Application = {
+                                ...selectedPaymentApp,
+                                paymentDetails: {
+                                  ...selectedPaymentApp.paymentDetails!,
+                                  internalNotes: internalNotesText
+                                }
+                              };
+                              await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                              setSelectedPaymentApp(updatedApp);
+                              alert('Treasury notes saved successfully.');
+                            }}
+                            className="px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-xs font-sans font-bold uppercase cursor-pointer"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Rejection UI Form if requested */}
+                      {showRejectForm && (
+                        <div className="p-4 bg-red-950/20 border border-red-500/20 rounded-xl space-y-3 animate-in slide-in-from-bottom-2 duration-200">
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-mono text-red-400 uppercase tracking-widest block font-bold">
+                              Reason for Rejection
+                            </label>
+                            <textarea
+                              rows={2}
+                              required
+                              value={rejectionReasonText}
+                              onChange={(e) => setRejectionReasonText(e.target.value)}
+                              placeholder="e.g. Transaction hash could not be verified on the Solana explorer, or proof document is too blurry."
+                              className="w-full px-3 py-2 rounded-lg border border-red-500/20 bg-[#13131A]/60 text-xs text-white placeholder-red-300/20 focus:outline-none focus:border-red-500/40 font-sans"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!rejectionReasonText.trim()) {
+                                  alert('Please enter a reason for rejecting the payment proof.');
+                                  return;
+                                }
+                                
+                                const updatedApp: Application = {
+                                  ...selectedPaymentApp,
+                                  status: 'APPROVED_AWAITING_PAYMENT',
+                                  paymentDetails: {
+                                    ...selectedPaymentApp.paymentDetails!,
+                                    status: 'REJECTED',
+                                    rejectionReason: rejectionReasonText,
+                                    internalNotes: internalNotesText
+                                  }
+                                };
+
+                                // Write notification to traveler inbox
+                                const userEmail = (selectedPaymentApp.personalInfo?.email || '').toLowerCase();
+                                const userKey = `fifa_inbox_${userEmail}`;
+                                const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
+                                userInbox.unshift({
+                                  id: `notif_${Date.now()}`,
+                                  subject: 'Deposit Payment Rejected',
+                                  message: `Your deposit proof of payment has been rejected by our financial officers. Reason: ${rejectionReasonText}. Please submit a valid transaction proof on the Payment Deck.`,
+                                  from: 'Treasury Department',
+                                  sentAt: new Date().toISOString(),
+                                  read: false
+                                });
+                                localStorage.setItem(userKey, JSON.stringify(userInbox));
+
+                                await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                                setSelectedPaymentApp(updatedApp);
+                                setShowRejectForm(false);
+                                alert('Payment proof rejected and citizen notified.');
+                              }}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-sans font-bold uppercase cursor-pointer"
+                            >
+                              Confirm Rejection
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowRejectForm(false)}
+                              className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-lg text-[10px] font-sans font-bold uppercase cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Operator actions row */}
+                    {!showRejectForm && (
+                      <div className="flex gap-3 justify-end pt-4 border-t border-white/[0.06] flex-wrap">
+                        {(currentAdminRole === 'Finance Officer' || currentAdminRole === 'Super Admin') && (
+                          <>
+                            {selectedPaymentApp.paymentDetails?.status !== 'APPROVED' && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const updatedApp: Application = {
+                                    ...selectedPaymentApp,
+                                    status: 'CLEARANCE_GRANTED',
+                                    reservationStatus: 'CONFIRMED',
+                                    paymentDetails: {
+                                      ...selectedPaymentApp.paymentDetails!,
+                                      status: 'APPROVED',
+                                      approvedAt: new Date().toISOString(),
+                                      internalNotes: internalNotesText
+                                    }
+                                  };
+
+                                  // Write success notification to traveler inbox
+                                  const userEmail = (selectedPaymentApp.personalInfo?.email || '').toLowerCase();
+                                  const userKey = `fifa_inbox_${userEmail}`;
+                                  const userInbox = JSON.parse(localStorage.getItem(userKey) || '[]');
+                                  userInbox.unshift({
+                                    id: `notif_${Date.now()}`,
+                                    subject: 'Accreditation Pass & Payment Approved',
+                                    message: 'Sovereign deposit settlement verified. Your security clearance is now fully active. Luxury accommodation coordinates and aviation log parameters have been unlocked in your cabinet.',
+                                    from: 'Security Office',
+                                    sentAt: new Date().toISOString(),
+                                    read: false
+                                  });
+                                  localStorage.setItem(userKey, JSON.stringify(userInbox));
+
+                                  await onUpdateApplication(selectedPaymentApp.id, updatedApp);
+                                  setSelectedPaymentApp(updatedApp);
+                                  alert('Sovereign payment approved and travel clearance issued.');
+                                }}
+                                className="flex items-center gap-1.5 bg-white hover:bg-zinc-200 text-[#13131A] px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer active:scale-95 shadow-md"
+                              >
+                                <ShieldCheck className="w-4 h-4" /> Approve Payment
+                              </button>
+                            )}
+
+                            {selectedPaymentApp.paymentDetails?.status !== 'REJECTED' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRejectionReasonText('');
+                                  setShowRejectForm(true);
+                                }}
+                                className="flex items-center gap-1.5 bg-red-950 hover:bg-red-900 hover:text-white text-red-400 px-4 py-2.5 rounded-xl text-xs font-mono font-bold uppercase duration-150 cursor-pointer border border-red-500/20"
+                              >
+                                <X className="w-4 h-4" /> Reject Payment
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: ALERT BROADCAST & NOTIFICATIONS RULES */}
+        {activeAdminTab === 'announcements' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="glass-card rounded-3xl p-6">
+              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-widest pb-3 border-b border-white/[0.06] mb-6">
+                BROADCAST ANNOUNCEMENT CROSS REGIONS
+              </h4>
+
+              <form onSubmit={handleBroadcast} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-[#5B5F78] uppercase block font-bold">Broadcast Headline</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Helicopter route sync updates in Dallas host city"
+                    value={alertTitle}
+                    onChange={(e) => setAlertTitle(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-white/20 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-[#5B5F78] uppercase block font-bold">Broadcast Narrative / Body</label>
+                  <textarea
+                    rows={4}
+                    required
+                    placeholder="Provide full logistics changes..."
+                    value={alertContent}
+                    onChange={(e) => setAlertContent(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-white/20 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono text-[#5B5F78] uppercase block font-bold">Transmit Scope Coverage</label>
+                    <select
+                      value={alertScope}
+                      onChange={(e) => setAlertScope(e.target.value as any)}
+                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-mono"
+                    >
+                      <option value="all">Sovereign Global Citizens (All Countries)</option>
+                      <option value="priority_only">Executive / Sovereign VIP VIP Access Only</option>
+                      <option value="country_specific">Territorial Specific Jurisdiction</option>
+                    </select>
+                  </div>
+
+                  {alertScope === 'country_specific' && (
+                    <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                      <label className="text-[10px] font-mono text-[#5B5F78] uppercase block font-bold">Dispatched Target Country</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. French, German"
+                        value={alertCountry}
+                        onChange={(e) => setAlertCountry(e.target.value)}
+                        className="w-full px-4 py-3 rounded-xl border border-zinc-850 bg-[#1C1C27]/40 text-xs text-white placeholder-white/20 focus:outline-none focus:border-white/15 font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="px-6 py-3 bg-white hover:bg-zinc-100 text-[#13131A] font-mono text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer duration-150 active:scale-95 shadow-md shadow-black/20"
+                >
+                  TRANSMIT DIGITAL BULLETIN
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: EMERGENCY TICKETS ROUTER */}
+        {activeAdminTab === 'tickets' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="glass-card rounded-3xl p-6">
+              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-widest pb-3 border-b border-white/[0.06] mb-6 font-semibold">
+                ACTIVE INCIDENT TICKETS QUEUE
+              </h4>
+
+              <div className="space-y-4">
+                {tickets.map(ticket => (
+                  <div key={ticket.id} className="p-5 rounded-2xl glass-card rounded-2xl space-y-4">
+                    <div className="flex justify-between items-start font-mono text-xs text-[#5B5F78] uppercase flex-wrap gap-2">
+                      <div>
+                        <span className="block font-bold text-white text-[13px] font-sans">Docket Incident: {ticket.subject}</span>
+                        <span className="text-[10px] block mt-1 tracking-tight">Accreditee: {ticket.userName} ({ticket.applicationNumber})</span>
+                      </div>
+                      <span className="text-white">[ OPEN INCIDENT LOG ]</span>
+                    </div>
+
+                    {/* Messages in ticket */}
+                    <div className="bg-[#1C1C27]/30 p-4 rounded-xl space-y-3 max-h-[180px] overflow-y-auto">
+                      {ticket.messages.map(msg => (
+                        <div key={msg.id} className={`flex flex-col text-xs font-sans ${msg.sender === 'admin' ? 'mr-auto items-start text-white' : 'ml-auto items-end text-white/80'}`}>
+                          <div className={`p-2.5 rounded-xl ${msg.sender === 'admin' ? 'bg-white/5 border border-white/8' : 'bg-[#1C1C27]'}`}>
+                            {msg.text}
+                          </div>
+                          <span className="text-[8px] font-mono text-[#5B5F78] mt-1 uppercase">
+                            {msg.sender === 'admin' ? 'RESP_OFFICER' : 'CITIZEN'} • {new Date(msg.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Officer Reply Trigger Input */}
+                    <div className="flex gap-2 font-mono">
+                      <input
+                        type="text"
+                        placeholder="Issue official response to citizen..."
+                        value={ticketReplies[ticket.id] || ''}
+                        onChange={(e) => setTicketReplies({ ...ticketReplies, [ticket.id]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleTicketReplySubmit(ticket.id);
+                        }}
+                        className="flex-1 px-3 py-2 rounded-lg glass text-xs text-white placeholder-white/20 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleTicketReplySubmit(ticket.id)}
+                        className="px-4 py-2 bg-white hover:bg-zinc-100 text-[#13131A] font-bold text-[10px] uppercase rounded-lg cursor-pointer transition active:scale-95"
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {tickets.length === 0 && (
+                  <div className="text-center py-8 text-[#5B5F78] font-mono text-[10px] uppercase">
+                    Zero emergency reports registered at present
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Footer Navigation Actuators */}
-        <div id="journey_footer_buttons" className="p-6 border-t border-zinc-900 bg-zinc-950/90 flex justify-between items-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (currentStep > 1) {
-                setCurrentStep(currentStep - 1);
-              } else {
-                onCancel();
-              }
-            }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-zinc-700 text-zinc-300 text-xs font-sans hover:bg-white/10 font-bold cursor-pointer transition active:scale-95"
-          >
-            <ChevronLeft className="w-4 h-4" /> Back
-          </button>
+        {/* TAB 6: DIRECT MESSAGE */}
+        {activeAdminTab === 'messages' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div className="glass-card rounded-3xl p-6">
+              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-widest pb-3 border-b border-white/[0.06] mb-6">
+                SEND DIRECT MESSAGE TO APPLICANT
+              </h4>
 
-          {currentStep < 12 ? (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(currentStep + 1)}
-              className="flex items-center gap-2 bg-white hover:bg-zinc-100 text-[#0C0D12] px-6 py-2.5 rounded-full text-xs font-sans font-bold tracking-wider cursor-pointer duration-150 transition shadow-lg active:scale-95"
-            >
-              Next Step <ChevronRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleFormSubmission}
-              className="flex items-center gap-2 bg-white hover:bg-zinc-100 text-[#0C0D12] px-8 py-3.5 rounded-full text-xs font-sans font-bold tracking-wider cursor-pointer duration-200 transition shadow-[0_4px_25px_rgba(255,255,255,0.15)] active:scale-95"
-            >
-              Sovereign Submit <ShieldCheck className="w-4.5 h-4.5" />
-            </button>
-          )}
-        </div>
+              {dmSent ? (
+                <div className="py-12 flex flex-col items-center gap-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                    <Check className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white font-sans uppercase">Message Dispatched</p>
+                    <p className="text-[11px] font-mono text-[#5B5F78] mt-1 uppercase">Securely delivered to citizen inbox</p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSendDM} className="space-y-5">
+                  {/* Quick-fill from application list */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">
+                      Or select applicant
+                    </label>
+                    <select
+                      value={dmEmail}
+                      onChange={e => setDmEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white focus:outline-none font-sans"
+                    >
+                      <option value="">— Select from registered applicants —</option>
+                      {applications.map(app => (
+                        <option key={app.id} value={app.personalInfo?.email || ''}>
+                          {app.personalInfo?.fullName || ''} ({app.personalInfo?.email || ''})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Recipient Email</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="citizen@email.com"
+                      value={dmEmail}
+                      onChange={e => setDmEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Subject Line</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Your accreditation requires action"
+                      value={dmSubject}
+                      onChange={e => setDmSubject(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Message Body</label>
+                    <textarea
+                      rows={5}
+                      required
+                      placeholder="Write your official message to this applicant..."
+                      value={dmMessage}
+                      onChange={e => setDmMessage(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] font-sans text-[#5B5F78] uppercase">
+                      Dispatched via secure encrypted portal relay
+                    </span>
+                    <button
+                      type="submit"
+                      className="flex items-center gap-2 px-6 py-3 bg-white hover:bg-zinc-100 text-[#13131A] font-sans text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer duration-155 active:scale-95 shadow-md shadow-black/20"
+                    >
+                      <Send className="w-3.5 h-3.5" /> Send Message
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            {/* Message log — all admin DMs saved per user */}
+            <div className="glass-card rounded-3xl p-6">
+              <h4 className="text-xs font-mono font-bold text-white uppercase tracking-widest pb-3 border-b border-white/[0.06] mb-4">
+                SENT MESSAGE LOG
+              </h4>
+              {(() => {
+                const allMessages: { to: string; subject: string; message: string; sentAt: string }[] = [];
+                try {
+                  const saved = localStorage.getItem('fifa_admin_direct_messages');
+                  if (saved) allMessages.push(...JSON.parse(saved));
+                } catch {}
+                return allMessages.length > 0 ? (
+                  <div className="space-y-3">
+                    {allMessages.slice().reverse().map((msg, i) => (
+                      <div key={i} className="p-4 rounded-xl glass space-y-1.5">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-bold text-white font-sans">{msg.subject}</span>
+                          <span className="text-[9px] font-mono text-[#5B5F78]">{new Date(msg.sentAt).toLocaleString()}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-[#8B8FA8] block">To: {msg.to}</span>
+                        <p className="text-[11px] text-white/70 font-sans leading-relaxed">{msg.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-[#5B5F78] font-mono text-[10px] uppercase">
+                    No direct messages sent yet
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
