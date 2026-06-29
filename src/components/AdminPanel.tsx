@@ -108,7 +108,7 @@ export default function AdminPanel({
   const totalValueUSD = applications.reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
   const totalValueSettledUSD = applications
     .filter(a => a.status === 'CLEARANCE_GRANTED')
-    .reduce((acc, curr) => acc + curr.costBreakdown.totalUSD, 0);
+    .reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
 
   const handleBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
