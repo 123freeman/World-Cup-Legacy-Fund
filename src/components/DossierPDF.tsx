@@ -190,7 +190,7 @@ export default function DossierPDF({ application, lang }: DossierPDFProps) {
           <div>
             <span className="text-[8px] font-mono text-[#5B5F78] uppercase block">Total Settled Tariff</span>
             <span className="text-sm font-extrabold text-white print:text-black font-mono">
-              {formatLocalCurrency(application.costBreakdown.totalUSD, lang)}
+              {formatLocalCurrency(application.costBreakdown?.totalUSD || 0, lang)}
             </span>
           </div>
 

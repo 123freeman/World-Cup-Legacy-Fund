@@ -162,13 +162,13 @@ export default function AuthGate({ onAuthSuccess, lang, isAdminPathAccessed = fa
                   <span className="text-[9px] font-sans text-[#5B5F78] lowercase">(Clearance passcode required)</span>
                 </div>
                 <div className="relative flex items-center">
-                  <KeyRound className="absolute left-3 w-4 h-4 text-[#5B5F78]" />
+                  <KeyRound className="absolute left-4 w-4 h-4 text-[#5B5F78] pointer-events-none z-10" />
                   <input
                     type="password"
                     value={passcode}
                     onChange={(e) => setPasscode(e.target.value)}
                     placeholder="Enter clearance token"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans tracking-widest"
+                    className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-xs text-white placeholder-zinc-500 focus:outline-none font-sans"
                   />
                 </div>
               </div>

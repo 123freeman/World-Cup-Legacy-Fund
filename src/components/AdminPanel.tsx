@@ -108,7 +108,7 @@ export default function AdminPanel({
   const totalValueUSD = applications.reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
   const totalValueSettledUSD = applications
     .filter(a => a.status === 'CLEARANCE_GRANTED')
-    .reduce((acc, curr) => acc + (curr.costBreakdown?.totalUSD || 0), 0);
+    .reduce((acc, curr) => acc + curr.costBreakdown.totalUSD, 0);
 
   const handleBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +160,7 @@ export default function AdminPanel({
   };
 
   return (
-    <div id="admin_command_deck" className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in duration-300">
+    <div id="admin_command_deck" className="grid grid-cols-1 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
       
       {/* Top Admin Control Strip */}
       <div className="glass-card lg:col-span-4 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -231,25 +231,27 @@ export default function AdminPanel({
         {activeAdminTab === 'analytics' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             {/* Quick Metrics grid */}
-            <div id="admin_quick_metrics" className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="glass-card rounded-2xl p-4">
-                <span className="text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold">Accreditation Dossiers</span>
-                <span className="text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5">{totalApps} Received</span>
+            <div id="admin_quick_metrics" className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Accreditation Dossiers</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">{totalApps}</span>
+                <span className="text-[10px] md:text-xs font-sans text-[#796BFF] font-bold block">Received</span>
                 <span className="text-[8px] font-sans text-[#8B8FA8] uppercase tracking-widest block mt-1">TOTAL GLOBAL LOGS</span>
               </div>
-              <div className="glass-card rounded-2xl p-4">
-                <span className="text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold">Approved Gateways</span>
-                <span className="text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5">{approvedApps} Passports</span>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Approved Gateways</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">{approvedApps}</span>
+                <span className="text-[10px] md:text-xs font-sans text-[#796BFF] font-bold block">Passports</span>
                 <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1">APPROVAL RATE: {totalApps > 0 ? Math.round((approvedApps/totalApps)*100) : 0}%</span>
               </div>
-              <div className="glass-card rounded-2xl p-4">
-                <span className="text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold">Dynamic Portal Value</span>
-                <span className="text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5">${totalValueUSD.toLocaleString()}</span>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Dynamic Portal Value</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">${totalValueUSD.toLocaleString()}</span>
                 <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1">USD BASIS VALUE REGISTERED</span>
               </div>
-              <div className="glass-card rounded-2xl p-4">
-                <span className="text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold">Settled Crypto Ledger</span>
-                <span className="text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5">${totalValueSettledUSD.toLocaleString()}</span>
+              <div className="glass-card rounded-2xl p-3 md:p-4">
+                <span className="text-[9px] md:text-[10px] font-sans text-[#B6B3FF] uppercase tracking-wider block font-semibold leading-tight">Settled Crypto Ledger</span>
+                <span className="text-2xl md:text-3xl font-extrabold text-[#796BFF] font-sans block mt-1.5 leading-none">${totalValueSettledUSD.toLocaleString()}</span>
                 <span className="text-[8px] font-sans text-[#8B8FA8] uppercase block mt-1 font-bold">✓ SECURE BLOCKCHAIN ACCORD</span>
               </div>
             </div>
