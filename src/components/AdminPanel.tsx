@@ -751,8 +751,8 @@ export default function AdminPanel({
                           <span className="text-white font-bold">{selectedPaymentApp.paymentDetails?.amountCrypto || 'N/A'}</span>
                         </div>
                         <div>
-                          <span className="text-[#5B5F78] block text-[9px] uppercase">Deposit Value (10%):</span>
-                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || ((selectedPaymentApp.costBreakdown?.totalUSD || 0) * 0.1)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="text-[#5B5F78] block text-[9px] uppercase">Deposit Value (20%):</span>
+                          <span className="text-emerald-400 font-bold">${(selectedPaymentApp.paymentDetails?.depositAmountUSD || ((selectedPaymentApp.costBreakdown?.totalUSD || 0) * 0.2)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div>
                           <span className="text-[#5B5F78] block text-[9px] uppercase">Package Total Value:</span>
@@ -767,6 +767,31 @@ export default function AdminPanel({
                           <span className="text-white font-bold uppercase">{selectedPaymentApp.paymentDetails?.status || 'PENDING'}</span>
                         </div>
                       </div>
+
+                      {/* Passport Documents */}
+                      {(selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:') || selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:')) && (
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-sans text-[#5B5F78] uppercase block font-bold">Passport Documents</span>
+                          <div className="flex gap-3 flex-wrap">
+                            {selectedPaymentApp.documents?.passportScanUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">International Passport</span>
+                                <a href={selectedPaymentApp.documents.passportScanUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportScanUrl} alt="Passport scan" className="w-24 h-24 object-cover rounded-lg border border-zinc-700 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                            {selectedPaymentApp.documents?.passportPhotoUrl?.startsWith('data:image') && (
+                              <div className="space-y-1">
+                                <span className="text-[9px] text-zinc-500 uppercase block">Passport Photo</span>
+                                <a href={selectedPaymentApp.documents.passportPhotoUrl} target="_blank" rel="noopener noreferrer">
+                                  <img src={selectedPaymentApp.documents.passportPhotoUrl} alt="Passport photo" className="w-24 h-24 object-cover rounded-full border-2 border-[#796BFF]/40 hover:border-[#796BFF] transition cursor-pointer" />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Internal Notes textarea */}
                       <div className="space-y-1.5">

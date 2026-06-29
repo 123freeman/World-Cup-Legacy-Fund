@@ -47,6 +47,10 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
   const [selfie, setSelfie] = useState<string | null>(null);
   const [facialScanActive, setFacialScanActive] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
+  const [passportScanFile, setPassportScanFile] = useState<File | null>(null);
+  const [passportPhotoFile, setPassportPhotoFile] = useState<File | null>(null);
+  const passportScanRef = React.useRef<HTMLInputElement>(null);
+  const passportPhotoRef = React.useRef<HTMLInputElement>(null);
 
   const [departureCity, setDepartureCity] = useState('Paris');
   const [departureCountry, setDepartureCountry] = useState(currentLanguage.name);
@@ -120,12 +124,19 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
     }, 1000);
   };
 
-  const handlePassportMockUpload = (type: 'scan' | 'photo') => {
-    if (type === 'scan') {
-      setPassportScan('secure_e_passport_cryptographic_scan');
-    } else {
-      setPassportPhoto('verified_epassport_biometric_photo');
-    }
+  const handleFileUpload = (type: 'scan' | 'photo', file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      if (type === 'scan') {
+        setPassportScan(base64);
+        setPassportScanFile(file);
+      } else {
+        setPassportPhoto(base64);
+        setPassportPhotoFile(file);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Submit Dossier
@@ -201,7 +212,7 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
       <div id="journey_timeline_hud" className="bg-zinc-950/70 backdrop-blur-md border border-zinc-900 rounded-2xl p-4 mb-6">
         <div className="flex items-center justify-between font-mono text-[9px] text-[#B6B3FF] uppercase tracking-widest mb-3.5">
           <span>Sovereign Security Gate Cleared: {currentStep} / 12</span>
-          <span>ESTIMATED DURATION: {(costs.totalUSD / 1000).toFixed(1)}K VALUE</span>
+          <span>ESTIMATED DURATION: {(costs?.totalUSD || 0 / 1000).toFixed(1)}K VALUE</span>
         </div>
         <div className="relative w-full h-[3px] bg-zinc-900 rounded-full flex justify-between">
           <div 
@@ -259,9 +270,12 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
               </h3>
             </div>
           </div>
-          <span className="text-xs font-mono text-[#B6B3FF] font-bold bg-[#796BFF]/10 border border-[#796BFF]/20 px-2.5 py-1 rounded-full hidden sm:block">
-            {formatLocalCurrency(costs.totalUSD, currentLanguage)}
-          </span>
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-[9px] text-zinc-500 uppercase font-mono">Deposit (20%)</span>
+            <span className="text-xs font-mono text-[#B6B3FF] font-bold bg-[#796BFF]/10 border border-[#796BFF]/20 px-2.5 py-1 rounded-full">
+              {formatLocalCurrency(costs?.totalUSD || 0 * 0.2, currentLanguage)}
+            </span>
+          </div>
         </div>
 
         {/* Dynamic Chapter Render Node */}
@@ -406,47 +420,67 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Passport Binary Scan Box */}
-                <div className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5">
-                  <UploadCloud className="w-8 h-8 text-[#796BFF]" />
+                {/* Passport Scan Upload */}
+                <div
+                  onClick={() => passportScanRef.current?.click()}
+                  className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5 cursor-pointer hover:border-[#796BFF]/40 transition-colors"
+                >
+                  <input
+                    ref={passportScanRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload('scan', f); }}
+                  />
+                  {passportScan && passportScan.startsWith('data:image') ? (
+                    <img src={passportScan} alt="Passport scan" className="w-20 h-20 object-cover rounded-lg border border-zinc-700" />
+                  ) : (
+                    <UploadCloud className="w-8 h-8 text-[#796BFF]" />
+                  )}
                   <div>
-                    <h5 className="text-xs font-semibold text-white font-sans">Legal Passport Scanning Page</h5>
+                    <h5 className="text-xs font-semibold text-white font-sans">International Passport</h5>
                     <p className="text-[10px] text-zinc-500 font-sans mt-1 uppercase font-semibold">MAX. 15MB • PDF, JPG, PNG</p>
                   </div>
                   {passportScan ? (
                     <div className="text-[10px] font-sans text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded">
-                      <Check className="w-3.5 h-3.5" /> SECURE SHIELD ACTIVE
+                      <Check className="w-3.5 h-3.5" /> {passportScanFile?.name || 'UPLOADED'}
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handlePassportMockUpload('scan')}
-                      className="px-4 py-1.5 border border-[#796BFF]/30 hover:border-[#796BFF]/60 text-[10px] font-sans uppercase text-[#B6B3FF] hover:bg-[#796BFF]/10 duration-150 rounded cursor-pointer font-semibold"
-                    >
-                      Process Document
-                    </button>
+                    <span className="px-4 py-1.5 border border-[#796BFF]/30 text-[10px] font-sans uppercase text-[#B6B3FF] rounded font-semibold">
+                      Click to Upload
+                    </span>
                   )}
                 </div>
 
-                {/* Passport Photoghraph ID Photo */}
-                <div className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5">
-                  <UploadCloud className="w-8 h-8 text-[#796BFF]" />
+                {/* Passport Photo Upload */}
+                <div
+                  onClick={() => passportPhotoRef.current?.click()}
+                  className="p-5 rounded-2xl border border-zinc-800 bg-[#121420] flex flex-col items-center justify-center text-center space-y-3.5 cursor-pointer hover:border-[#796BFF]/40 transition-colors"
+                >
+                  <input
+                    ref={passportPhotoRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload('photo', f); }}
+                  />
+                  {passportPhoto && passportPhoto.startsWith('data:image') ? (
+                    <img src={passportPhoto} alt="Passport photo" className="w-20 h-20 object-cover rounded-full border-2 border-[#796BFF]/40" />
+                  ) : (
+                    <UploadCloud className="w-8 h-8 text-[#796BFF]" />
+                  )}
                   <div>
-                    <h5 className="text-xs font-semibold text-white font-sans">Sovereign Passport Photo Page</h5>
+                    <h5 className="text-xs font-semibold text-white font-sans">Passport Photo</h5>
                     <p className="text-[10px] text-zinc-500 font-sans mt-1 uppercase font-semibold">MAX. 15MB • JPG, PNG ONLY</p>
                   </div>
                   {passportPhoto ? (
                     <div className="text-[10px] font-sans text-emerald-400 flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded">
-                      <Check className="w-3.5 h-3.5" /> BIOMETRIC ACQUIRED
+                      <Check className="w-3.5 h-3.5" /> {passportPhotoFile?.name || 'UPLOADED'}
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => handlePassportMockUpload('photo')}
-                      className="px-4 py-1.5 border border-[#796BFF]/30 hover:border-[#796BFF]/60 text-[10px] font-sans uppercase text-[#B6B3FF] hover:bg-[#796BFF]/10 duration-150 rounded cursor-pointer font-semibold"
-                    >
-                      Process Document
-                    </button>
+                    <span className="px-4 py-1.5 border border-[#796BFF]/30 text-[10px] font-sans uppercase text-[#B6B3FF] rounded font-semibold">
+                      Click to Upload
+                    </span>
                   )}
                 </div>
 
@@ -710,7 +744,14 @@ export default function ApplicationJourney({ currentLanguage, userEmail, onSubmi
                 )}
                 <div className="pt-4 border-t border-zinc-900 flex justify-between items-center">
                   <span className="text-sm font-bold text-white uppercase tracking-wider">Estimated Sovereignty Rate</span>
-                  <span className="text-base font-extrabold text-[#B6B3FF]">{formatLocalCurrency(costs.totalUSD, currentLanguage)}</span>
+                  <span className="text-base font-extrabold text-[#B6B3FF]">{formatLocalCurrency(costs?.totalUSD || 0, currentLanguage)}</span>
+                </div>
+                <div className="pt-3 border-t border-zinc-900 flex justify-between items-center bg-[#796BFF]/05 rounded-xl px-3 py-2">
+                  <div>
+                    <span className="text-xs font-bold text-[#00E676] uppercase tracking-wider block">Required Deposit (20%)</span>
+                    <span className="text-[9px] text-zinc-500 uppercase">Balance settled on arrival clearance</span>
+                  </div>
+                  <span className="text-base font-extrabold text-[#00E676]">{formatLocalCurrency(costs?.totalUSD || 0 * 0.2, currentLanguage)}</span>
                 </div>
               </div>
 

@@ -165,9 +165,19 @@ export default function TravelPortal({
         
         {/* Accreditee Status Badge */}
         <div className="glass-card rounded-3xl p-5 text-center">
-          <div className="relative mx-auto w-16 h-16 rounded-full border border-white/10 flex items-center justify-center bg-[#121420]">
-            <span className="text-xl select-none">🏆</span>
-            <div className="absolute -inset-1 rounded-full border-2 border-dashed border-[#796BFF]/30 animate-spin-slow" />
+          <div className="relative mx-auto w-16 h-16 rounded-full border border-white/10 bg-[#121420] overflow-hidden">
+            {application.documents?.passportPhotoUrl && application.documents.passportPhotoUrl.startsWith('data:image') ? (
+              <img
+                src={application.documents.passportPhotoUrl}
+                alt="Passport photo"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-xl select-none">🏆</span>
+              </div>
+            )}
+            <div className="absolute -inset-1 rounded-full border-2 border-dashed border-[#796BFF]/30 animate-spin-slow pointer-events-none" />
           </div>
 
           <div className="mt-4">
@@ -193,7 +203,7 @@ export default function TravelPortal({
             </div>
             <div className="flex justify-between text-right">
               <span className="text-[#5B5F78] uppercase">RECONV:</span>
-              <span className="text-white font-bold">{formatLocalCurrency(application.costBreakdown.totalUSD, lang)}</span>
+              <span className="text-white font-bold">{formatLocalCurrency(application.costBreakdown?.totalUSD || 0, lang)}</span>
             </div>
           </div>
 
@@ -406,7 +416,7 @@ export default function TravelPortal({
                         ? `Verification in progress. Proof file uploaded successfully.`
                         : application.paymentDetails?.status === 'REJECTED'
                         ? `Rejected: ${application.paymentDetails?.rejectionReason || 'No reason specified'}.`
-                        : `Settle the required 10% deposit (${formatLocalCurrency(application.costBreakdown.totalUSD * 0.1, lang)}) to confirm reservation.`}
+                        : `Settle the required 10% deposit (${formatLocalCurrency(application.costBreakdown?.totalUSD || 0 * 0.1, lang)}) to confirm reservation.`}
                     </p>
                   </div>
                 </div>
@@ -435,7 +445,7 @@ export default function TravelPortal({
         {activeTab === 'accommodation' && (
           application.paymentDetails?.status !== 'APPROVED' ? (
             <LockedTabOverlay 
-              depositAmount={application.costBreakdown.totalUSD * 0.1} 
+              depositAmount={application.costBreakdown?.totalUSD || 0 * 0.1} 
               onPay={onNavigateToPayment} 
               methodStatus={application.paymentDetails?.status} 
             />
@@ -501,7 +511,7 @@ export default function TravelPortal({
         {activeTab === 'travel' && (
           application.paymentDetails?.status !== 'APPROVED' ? (
             <LockedTabOverlay 
-              depositAmount={application.costBreakdown.totalUSD * 0.1} 
+              depositAmount={application.costBreakdown?.totalUSD || 0 * 0.1} 
               onPay={onNavigateToPayment} 
               methodStatus={application.paymentDetails?.status} 
             />
@@ -556,7 +566,7 @@ export default function TravelPortal({
         {activeTab === 'local' && (
           application.paymentDetails?.status !== 'APPROVED' ? (
             <LockedTabOverlay 
-              depositAmount={application.costBreakdown.totalUSD * 0.1} 
+              depositAmount={application.costBreakdown?.totalUSD || 0 * 0.1} 
               onPay={onNavigateToPayment} 
               methodStatus={application.paymentDetails?.status} 
             />
